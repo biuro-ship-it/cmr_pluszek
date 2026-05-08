@@ -1,0 +1,115 @@
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f7f7f8;
+}
+
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+input {
+  padding: 0.6rem;
+}
+
+select {
+  padding: 0.6rem;
+}
+
+button {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: #0b66ff;
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+}
+
+.action-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.client-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #eee;
+  padding: 0.6rem 0;
+}
+
+.interaction-box {
+  background: #f8fbff;
+  border: 1px solid #dbe9ff;
+  border-radius: 8px;
+  padding: 0.8rem;
+  margin: 0.6rem 0 1rem;
+}
+
+.two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.status {
+  display: inline-block;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 2px solid transparent;
+}
+
+.status-done {
+  color: #ffffff;
+  background: #0b66ff;
+  border-color: #0848b8;
+}
+
+.status-planned {
+  color: #1f2937;
+  background: #ffd166;
+  border-color: #a56b00;
+}
+
+.status-moved {
+  color: #ffffff;
+  background: #c62828;
+  border-color: #8e0000;
+}
+
+.filter-btn {
+  background: #eef3ff;
+  border: 1px solid #c8d6ff;
+  border-radius: 6px;
+}
+
+.filter-btn.active {
+  background: #0b66ff;
+  color: #fff;
+  border-color: #0848b8;
+}
