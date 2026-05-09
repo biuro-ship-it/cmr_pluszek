@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Client, ClientFormData } from '../services/api';
 
 const PROVINCES = [
   'Dolnośląskie', 'Kujawsko-pomorskie', 'Lubelskie', 'Lubuskie',
@@ -8,18 +9,19 @@ const PROVINCES = [
 ];
 
 interface ClientFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: ClientFormData) => void;
   onCancel: () => void;
+  initial?: Client | null;
 }
 
-const ClientForm: React.FC<ClientFormProps> = ({ onSubmit, onCancel }) => {
-  const [formData, setFormData] = useState({
-    companyName: '',
-    type: 'sklep',
-    contactPerson: '',
-    email: '',
-    phone: '',
-    address: { province: '', zipCode: '', city: '', street: '', number: '' }
+const ClientForm: React.FC<ClientFormProps> = ({ onSubmit, onCancel, initial }) => {
+  const [formData, setFormData] = useState<ClientFormData>({
+    companyName: initial?.companyName ?? '',
+    type: initial?.type ?? 'sklep',
+    contactPerson: initial?.contactPerson ?? '',
+    email: initial?.email ?? '',
+    phone: initial?.phone ?? '',
+    address: initial?.address ?? { province: '', zipCode: '', city: '', street: '', number: '' }
   });
 
   const handleZip = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,13 +33,17 @@ const ClientForm: React.FC<ClientFormProps> = ({ onSubmit, onCancel }) => {
   return (
     <div className="bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl border border-white/20 animate-in fade-in zoom-in duration-300">
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Nowy Partner Biznesowy</h2>
+        <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+          {initial ? 'Edycja Klienta' : 'Nowy Partner Biznesowy'}
+        </h2>
         <div className="flex gap-2">
           <button 
+            type="button"
             onClick={() => setFormData({...formData, type: 'sklep'})}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${formData.type === 'sklep' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
           >SKLEP 🏪</button>
           <button 
+            type="button"
             onClick={() => setFormData({...formData, type: 'hurt'})}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${formData.type === 'hurt' ? 'bg-blue-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
           >HURT 📦</button>
@@ -107,7 +113,9 @@ const ClientForm: React.FC<ClientFormProps> = ({ onSubmit, onCancel }) => {
 
         <div className="col-span-full flex justify-end gap-3 mt-4">
           <button type="button" onClick={onCancel} className="px-6 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all">Anuluj</button>
-          <button type="submit" className="px-10 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:bg-blue-600 hover:-translate-y-1 transition-all active:scale-95">Dodaj Klienta do Bazy</button>
+          <button type="submit" className="px-10 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:bg-blue-600 hover:-translate-y-1 transition-all active:scale-95">
+            {initial ? 'Zapisz zmiany' : 'Dodaj Klienta do Bazy'}
+          </button>
         </div>
       </form>
     </div>
