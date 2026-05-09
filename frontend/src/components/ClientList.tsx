@@ -5,9 +5,10 @@ interface ClientListProps {
   clients: Client[];
   onEdit: (client: Client) => void;
   onDelete?: (id: string) => void;
+  onView: (client: Client) => void; // NOWE: Funkcja otwierająca kartę
 }
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete, onView }) => {
   const [search, setSearch] = useState('');
 
   const filtered = clients.filter((c) => {
@@ -34,7 +35,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete }) =>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((client) => (
-          <div key={client.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group relative">
+          <div key={client.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group relative flex flex-col h-full">
             <div className="flex justify-between items-start mb-4">
               <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${
                 client.type === 'hurt' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
@@ -51,7 +52,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete }) =>
             </h3>
             <p className="text-slate-500 text-sm mb-4">👤 {client.contactPerson || 'Brak osoby kontaktowej'}</p>
             
-            <div className="space-y-2 mb-6">
+            <div className="space-y-2 mb-6 flex-grow">
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <span>📍</span>
                 <span>{client.address?.city || 'Brak miasta'}, {client.address?.province || 'Brak woj.'}</span>
@@ -62,7 +63,11 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete }) =>
               </div>
             </div>
 
-            <button className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl transition-colors border border-slate-100">
+            {/* NOWE: Podpięta akcja onView */}
+            <button 
+              onClick={() => onView(client)}
+              className="w-full mt-auto py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl transition-colors border border-slate-100"
+            >
               Otwórz kartę klienta
             </button>
           </div>

@@ -5,12 +5,7 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {
-      colors: {
-        primary: '#1e40af', // Ciemnoniebieski dla biznesu
-        secondary: '#0f172a',
-      }
-    },
+    extend: {},
   },
   plugins: [],
 }
