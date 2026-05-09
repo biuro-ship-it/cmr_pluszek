@@ -5,7 +5,7 @@ interface ClientListProps {
   clients: Client[];
   onEdit: (client: Client) => void;
   onDelete?: (id: string) => void;
-  onView: (client: Client) => void; // NOWE: Funkcja otwierająca kartę
+  onView: (client: Client) => void;
 }
 
 const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete, onView }) => {
@@ -20,6 +20,30 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete, onVi
       (c.phone ?? '').toLowerCase().includes(q)
     );
   });
+
+  // Funkcja obliczająca i formatująca licznik dni
+  const renderDaysCounter = (client: Client) => {
+    const dateToUse = client.lastContactAt || client.createdAt;
+    if (!dateToUse) return null;
+
+    const contactDate = new Date(dateToUse);
+    const today = new Date();
+    
+    // Zerujemy godziny, aby liczyć pełne dni
+    contactDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    
+    const diffTime = today.getTime() - contactDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 45) {
+      return <span className="text-red-600 font-bold ml-2">({diffDays})</span>;
+    } else if (diffDays > 21) {
+      return <span className="text-orange-500 font-bold ml-2">({diffDays})</span>;
+    } else {
+      return <span className="text-slate-500 font-normal ml-2">({diffDays})</span>;
+    }
+  };
 
   return (
     <div>
@@ -47,8 +71,9 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete, onVi
               </button>
             </div>
             
-            <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors flex items-center flex-wrap">
               {client.companyName}
+              {renderDaysCounter(client)}
             </h3>
             <p className="text-slate-500 text-sm mb-4">👤 {client.contactPerson || 'Brak osoby kontaktowej'}</p>
             
@@ -63,7 +88,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onDelete, onVi
               </div>
             </div>
 
-            {/* NOWE: Podpięta akcja onView */}
             <button 
               onClick={() => onView(client)}
               className="w-full mt-auto py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl transition-colors border border-slate-100"

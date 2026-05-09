@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 import clientRoutes from './routes/clients';
-import productRoutes from './routes/products'; // IMPORT TRASY PRODUKTÓW
+import productRoutes from './routes/products';
+import followupRoutes from './routes/followups'; // IMPORT TRASY PRZYPOMNIEŃ
 import { initializeBaseProducts } from './services/products';
 
 dotenv.config();
@@ -12,9 +13,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// PODPIĘCIE GŁÓWNYCH MODUŁÓW
+// GŁÓWNE MODUŁY
 app.use('/api/clients', clientRoutes);
-app.use('/api/products', productRoutes); // AKTYWACJA TRASY PRODUKTÓW
+app.use('/api/products', productRoutes);
+app.use('/api/followups', followupRoutes); // AKTYWACJA TRASY PRZYPOMNIEŃ
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

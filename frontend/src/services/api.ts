@@ -55,6 +55,22 @@ export interface Product {
   name: string;
   createdAt: string;
 }
+export interface FollowUp {
+  id: string;
+  clientId: string;
+  clientName: string;
+  dueDate: string;
+  reminderText: string;
+  status: 'zaplanowane' | 'zrealizowane' | 'przesunięte';
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface FollowUpFormData {
+  clientName: string;
+  dueDate: string;
+  reminderText: string;
+}
 
 // --- KONFIGURACJA API ---
 
@@ -178,4 +194,36 @@ export const getProductsList = async (): Promise<Product[]> => {
   
   if (!response.ok) throw new Error('Nie udało się pobrać produktów');
   return response.json();
+};
+const FOLLOWUPS_URL = `${API_URL}/api/followups`;
+
+/** Pobiera listę dzisiejszych i zaległych zadań */
+export const getFollowUpSummary = async (): Promise<FollowUp[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${FOLLOWUPS_URL}/summary`, { headers });
+  if (!response.ok) throw new Error('Błąd pobierania zadań');
+  return response.json();
+};
+
+/** Dodaje nowe przypomnienie do klienta */
+export const createFollowUp = async (clientId: string, data: FollowUpFormData): Promise<FollowUp> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${FOLLOWUPS_URL}/client/${clientId}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) throw new Error('Błąd dodawania przypomnienia');
+  return response.json();
+};
+
+/** Oznacza przypomnienie jako zrealizowane */
+export const updateFollowUpStatus = async (id: string, status: 'zrealizowane' | 'przesunięte'): Promise<void> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${FOLLOWUPS_URL}/${id}/status`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ status })
+  });
+  if (!response.ok) throw new Error('Błąd zmiany statusu zadania');
 };
