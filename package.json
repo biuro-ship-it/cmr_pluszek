@@ -1,0 +1,16 @@
+{
+  "name": "cmr-pluszek",
+  "version": "1.0.0",
+  "description": "Monorepo: - `frontend`: React + Vite + Firebase Auth (Google Sign-In) - `backend`: Express + Firebase Admin + Firestore (klienci + interakcje)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase": "^12.13.0"
+  }
+}

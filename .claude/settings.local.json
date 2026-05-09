@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"D:\\\\DEV\\\\APLIKACJE\\\\app_cmr_pluszek\\\\CMR-Pluszek\" -Force)",
+      "Bash(Select-Object FullName, Name, PSIsContainer)"
+    ]
+  }
+}
