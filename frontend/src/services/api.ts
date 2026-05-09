@@ -32,6 +32,29 @@ export interface ClientFormData {
   address: Address;
 }
 
+export interface Interaction {
+  id: string;
+  contactDate: string;
+  channel: 'telefon' | 'mail' | 'spotkanie' | 'inne';
+  notes: string;
+  tradeNotes?: string;
+  products?: string[];
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface InteractionFormData {
+  contactDate: string;
+  channel: 'telefon' | 'mail' | 'spotkanie' | 'inne';
+  notes: string;
+  tradeNotes: string;
+  products: string[];
+}
+export interface Product {
+  id: string;
+  name: string;
+  createdAt: string;
+}
 
 // --- KONFIGURACJA API ---
 
@@ -120,4 +143,39 @@ export const deleteClient = async (id: string): Promise<void> => {
   if (!response.ok) {
     throw new Error('Nie udało się usunąć klienta');
   }
+};
+/**
+ * Pobiera historię kontaktów dla konkretnego klienta
+ */
+export const getClientInteractions = async (clientId: string): Promise<Interaction[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${CLIENTS_URL}/${clientId}/interactions`, { headers });
+  
+  if (!response.ok) throw new Error('Nie udało się pobrać historii kontaktów');
+  return response.json();
+};
+
+/**
+ * Dodaje nowy wpis do historii kontaktów klienta
+ */
+export const createClientInteraction = async (clientId: string, data: InteractionFormData): Promise<Interaction> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${CLIENTS_URL}/${clientId}/interactions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data)
+  });
+  
+  if (!response.ok) throw new Error('Nie udało się zapisać kontaktu');
+  return response.json();
+};
+/**
+ * Pobiera listę produktów z oferty
+ */
+export const getProductsList = async (): Promise<Product[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/products`, { headers });
+  
+  if (!response.ok) throw new Error('Nie udało się pobrać produktów');
+  return response.json();
 };
