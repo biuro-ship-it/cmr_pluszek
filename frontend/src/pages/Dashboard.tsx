@@ -1,142 +1,112 @@
-import React, { useState } from 'react';
-import { User } from 'firebase/auth';
+import React, { useEffect, useState } from 'react';
 import { useClients } from '../hooks/useClients';
-import ClientList from '../components/ClientList';
 import ClientForm from '../components/ClientForm';
+import ClientList from '../components/ClientList';
 import { Client, ClientFormData } from '../services/api';
 
-interface Props {
-  user: User;
+interface DashboardProps {
+  user: any;
   onSignOut: () => void;
 }
 
-export default function Dashboard({ user, onSignOut }: Props) {
-  const { clients, loading, error, createClient, updateClient, deleteClient } = useClients();
+const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
+  const { clients, loading, error, fetchClients, createClient, updateClient, removeClient } = useClients();
   const [showForm, setShowForm] = useState(false);
   const [editClient, setEditClient] = useState<Client | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleAdd = () => {
+  // Pobieranie listy klientów przy pierwszym uruchomieniu Dashboardu
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+
+  const handleAddClick = () => {
     setEditClient(null);
     setShowForm(true);
   };
 
-  const handleEdit = (client: Client) => {
+  const handleEditClick = (client: Client) => {
     setEditClient(client);
     setShowForm(true);
   };
 
+  // Dodano bezpieczne try/catch (Punkt P3-1 z audytu)
   const handleSubmit = async (data: ClientFormData) => {
-    if (editClient) {
-      await updateClient(editClient.id, data);
-    } else {
-      await createClient(data);
+    setSubmitError(null);
+    try {
+      if (editClient) {
+        await updateClient(editClient.id, data);
+      } else {
+        await createClient(data);
+      }
+      setShowForm(false);
+      setEditClient(null);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Błąd zapisu. Spróbuj ponownie.');
     }
-    setShowForm(false);
-    setEditClient(null);
-  };
-
-  const handleClose = () => {
-    setShowForm(false);
-    setEditClient(null);
   };
 
   return (
-    <div style={styles.wrapper}>
-      {/* Navbar */}
-      <nav style={styles.nav}>
-        <div style={styles.navLeft}>
-          <span style={styles.navLogo}>📋</span>
-          <span style={styles.navTitle}>CRM Pluszek</span>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+      {/* Pasek nawigacyjny */}
+      <nav className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">📦</span>
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent">
+            CRM Pluszek
+          </h1>
         </div>
-        <div style={styles.navRight}>
-          <span style={styles.userEmail}>{user.email}</span>
-          <button style={styles.signOutBtn} onClick={onSignOut}>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-slate-500 hidden sm:block">{user?.email}</span>
+          <button 
+            onClick={onSignOut} 
+            className="text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
+          >
             Wyloguj
           </button>
         </div>
       </nav>
 
-      {/* Główna zawartość */}
-      <main style={styles.main}>
-        {/* Nagłówek sekcji */}
-        <div style={styles.sectionHeader}>
+      {/* Główna sekcja zawartości */}
+      <main className="max-w-7xl mx-auto p-6">
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h2 style={styles.sectionTitle}>Klienci</h2>
-            <p style={styles.sectionSub}>
-              {loading ? '...' : `${clients.length} klientów w bazie`}
-            </p>
+            <h2 className="text-3xl font-extrabold text-slate-900">Twoi Klienci</h2>
+            <p className="text-slate-500">{clients.length} zarejestrowanych podmiotów</p>
           </div>
-          <button style={styles.addBtn} onClick={handleAdd}>
-            + Dodaj klienta
+          <button 
+            onClick={showForm ? () => setShowForm(false) : handleAddClick} 
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
+          >
+            {showForm ? '✕ Zamknij formularz' : '＋ Dodaj klienta'}
           </button>
         </div>
 
-        {/* Stany */}
-        {loading && <div style={styles.loader}>⏳ Ładowanie klientów...</div>}
-        {error && <div style={styles.errorBox}>❌ {error}</div>}
-        {!loading && !error && (
-          <ClientList
-            clients={clients}
-            onEdit={handleEdit}
-            onDelete={deleteClient}
+        {/* Wyświetlanie błędów */}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6">⚠️ {error}</div>}
+        {submitError && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6">⚠️ {submitError}</div>}
+
+        {/* Renderowanie warunkowe: Ładowanie / Formularz / Lista */}
+        {loading ? (
+          <div className="text-center text-slate-500 py-10 font-bold animate-pulse">Ładowanie danych z bazy...</div>
+        ) : showForm ? (
+          <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <ClientForm 
+              onSubmit={handleSubmit} 
+              onCancel={() => setShowForm(false)} 
+              initial={editClient} 
+            />
+          </div>
+        ) : (
+          <ClientList 
+            clients={clients} 
+            onEdit={handleEditClick} 
+            onDelete={removeClient} 
           />
         )}
       </main>
-
-      {/* Modal formularza */}
-      {showForm && (
-        <ClientForm
-          initial={editClient}
-          onSubmit={handleSubmit}
-          onCancel={handleClose}
-        />
-      )}
     </div>
   );
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  wrapper: {
-    minHeight: '100vh',
-    background: '#f1f5f9',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  },
-  nav: {
-    background: '#fff',
-    borderBottom: '1px solid #e2e8f0',
-    padding: '0 24px',
-    height: 56,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    position: 'sticky', top: 0, zIndex: 50,
-  },
-  navLeft: { display: 'flex', alignItems: 'center', gap: 10 },
-  navLogo: { fontSize: 22 },
-  navTitle: { fontSize: 17, fontWeight: 700, color: '#1e293b' },
-  navRight: { display: 'flex', alignItems: 'center', gap: 12 },
-  userEmail: { fontSize: 13, color: '#64748b' },
-  signOutBtn: {
-    padding: '6px 14px', borderRadius: 7, border: '1px solid #e2e8f0',
-    background: '#fff', color: '#64748b', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-  },
-  main: {
-    maxWidth: 860,
-    margin: '0 auto',
-    padding: '28px 16px',
-  },
-  sectionHeader: {
-    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    marginBottom: 20, flexWrap: 'wrap', gap: 12,
-  },
-  sectionTitle: { fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0 },
-  sectionSub: { fontSize: 13, color: '#64748b', marginTop: 4 },
-  addBtn: {
-    padding: '9px 18px', borderRadius: 8, border: 'none',
-    background: '#2563eb', color: '#fff', cursor: 'pointer',
-    fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
-  },
-  loader: { textAlign: 'center', padding: 40, color: '#64748b', fontSize: 14 },
-  errorBox: {
-    background: '#fee2e2', color: '#dc2626',
-    padding: '12px 16px', borderRadius: 8, fontSize: 14,
-  },
 };
+
+export default Dashboard;

@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { db } from '../services/firebase';
 import { Client } from '../types';
+import { verifyToken } from '../middleware/auth';
 
 const router = Router();
 const COLLECTION = 'clients';
+
+// ZABEZPIECZENIE: Ta jedna linijka sprawia, że wszystkie poniższe endpointy wymagają logowania
+router.use(verifyToken);
 
 /**
  * POBIERANIE WSZYSTKICH KLIENTÓW
@@ -24,7 +28,6 @@ router.get('/', async (req, res) => {
 
 /**
  * DODAWANIE NOWEGO KLIENTA
- * Obsługuje nową strukturę: type (hurt/sklep) oraz obiekt address
  */
 router.post('/', async (req, res) => {
   try {
