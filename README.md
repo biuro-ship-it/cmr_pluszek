@@ -107,3 +107,10 @@ W trakcie:
 - Polerowanie UI/UX.
 - Obsługa kolejki zmian offline (Offline Queue).
 # cmr_pluszek
+
+Jak będziesz pracował od teraz?
+Dzięki temu, co dzisiaj ustawiliśmy, Twoja praca będzie znacznie przyjemniejsza:
+
+Zmiany w Backendzie: Robisz git push production master na komputerze. Serwer sam pobierze zmiany i się zrestartuje.
+
+Zmiany we Frontendzie: Budujesz projekt (npm run build) i wgrywasz tylko folder dist do public_html przez SFTP.

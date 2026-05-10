@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import * as dotenv from 'dotenv';
+import path from 'path'; // DODANE: obsługa ścieżek
 import clientRoutes from './routes/clients';
 import productRoutes from './routes/products';
 import followupRoutes from './routes/followups';
@@ -11,8 +12,10 @@ dotenv.config();
 
 const app = express();
 
-// 1. BEZPIECZEŃSTWO: Helmet (ukrywa technologię i dodaje bezpieczne nagłówki HTTP)
-app.use(helmet());
+// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla skryptów frontendu)
+app.use(helmet({
+  contentSecurityPolicy: false, // Wyłączone CSP dla łatwiejszego startu, można skonfigurować później
+}));
 
 // 2. BEZPIECZEŃSTWO: Ograniczenie CORS
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',');
@@ -29,21 +32,34 @@ app.use(cors({
 
 app.use(express.json());
 
-// 3. BEZPIECZEŃSTWO: Rate Limiting (Ochrona przed masowym spamowaniem API)
+// 3. OBSŁUGA FRONTENDU (DODANE)
+// Zakładamy, że folder 'public' stworzysz w katalogu głównym backendu
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// 4. BEZPIECZEŃSTWO: Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minut
-  max: 200, // limit 200 zapytań z jednego IP
+  max: 200, 
   message: { error: 'Zbyt wiele requestów. Spróbuj za chwilę.' }
 });
 app.use('/api/', limiter);
 
-// GŁÓWNE MODUŁY
+// GŁÓWNE MODUŁY API
 app.use('/api/clients', clientRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/followups', followupRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// 5. OBSŁUGA ROUTINGU FRONTENDU (DODANE)
+// To sprawi, że strona zadziała na telefonie pod głównym adresem
+app.get('*', (req, res) => {
+  // Jeśli zapytanie nie jest do API, serwujemy index.html z frontendu
+  if (!req.path.startsWith('/api/')) {
+    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  }
 });
 
 const PORT = process.env.PORT || 4000;

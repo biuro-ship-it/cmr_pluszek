@@ -7,7 +7,6 @@ yarn.lock
 
 # Production
 /build
-/dist
 /out
 
 # IDE

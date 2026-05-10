@@ -41,13 +41,16 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv = __importStar(require("dotenv"));
+const path_1 = __importDefault(require("path")); // DODANE: obsługa ścieżek
 const clients_1 = __importDefault(require("./routes/clients"));
 const products_1 = __importDefault(require("./routes/products"));
 const followups_1 = __importDefault(require("./routes/followups"));
 dotenv.config();
 const app = (0, express_1.default)();
-// 1. BEZPIECZEŃSTWO: Helmet (ukrywa technologię i dodaje bezpieczne nagłówki HTTP)
-app.use((0, helmet_1.default)());
+// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla skryptów frontendu)
+app.use((0, helmet_1.default)({
+    contentSecurityPolicy: false, // Wyłączone CSP dla łatwiejszego startu, można skonfigurować później
+}));
 // 2. BEZPIECZEŃSTWO: Ograniczenie CORS
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',');
 app.use((0, cors_1.default)({
@@ -62,19 +65,30 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 app.use(express_1.default.json());
-// 3. BEZPIECZEŃSTWO: Rate Limiting (Ochrona przed masowym spamowaniem API)
+// 3. OBSŁUGA FRONTENDU (DODANE)
+// Zakładamy, że folder 'public' stworzysz w katalogu głównym backendu
+app.use(express_1.default.static(path_1.default.join(__dirname, '..', 'public')));
+// 4. BEZPIECZEŃSTWO: Rate Limiting
 const limiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minut
-    max: 200, // limit 200 zapytań z jednego IP
+    max: 200,
     message: { error: 'Zbyt wiele requestów. Spróbuj za chwilę.' }
 });
 app.use('/api/', limiter);
-// GŁÓWNE MODUŁY
+// GŁÓWNE MODUŁY API
 app.use('/api/clients', clients_1.default);
 app.use('/api/products', products_1.default);
 app.use('/api/followups', followups_1.default);
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+// 5. OBSŁUGA ROUTINGU FRONTENDU (DODANE)
+// To sprawi, że strona zadziała na telefonie pod głównym adresem
+app.get('*', (req, res) => {
+    // Jeśli zapytanie nie jest do API, serwujemy index.html z frontendu
+    if (!req.path.startsWith('/api/')) {
+        res.sendFile(path_1.default.join(__dirname, '..', 'public', 'index.html'));
+    }
 });
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
