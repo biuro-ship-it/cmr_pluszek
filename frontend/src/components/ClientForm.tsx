@@ -1,125 +1,166 @@
-import React, { useState } from 'react';
-import { Client, ClientFormData } from '../services/api';
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 
-const PROVINCES = [
-  'Dolnośląskie', 'Kujawsko-pomorskie', 'Lubelskie', 'Lubuskie',
-  'Łódzkie', 'Małopolskie', 'Mazowieckie', 'Opolskie',
-  'Podkarpackie', 'Podlaskie', 'Pomorskie', 'Śląskie',
-  'Świętokrzyskie', 'Warmińsko-mazurskie', 'Wielkopolskie', 'Zachodniopomorskie'
-];
-
-interface ClientFormProps {
-  onSubmit: (data: ClientFormData) => void;
-  onCancel: () => void;
-  initial?: Client | null;
+// 1. Pełny interfejs danych - zgodny z Twoim Dashboardem i bazą danych
+interface ClientFormData {
+  companyName: string;
+  type: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  zipCode: string;
+  province: string;
+  notes: string;
 }
 
-const ClientForm: React.FC<ClientFormProps> = ({ onSubmit, onCancel, initial }) => {
+// 2. Props dopasowane do Dashboard.tsx
+interface ClientFormProps {
+  initial?: any | null; // Przyjmuje 'Client' lub null
+  onSubmit: (data: any) => Promise<void> | void;
+  onCancel: () => void;
+}
+
+const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel }) => {
+  // Mapowanie danych początkowych (obsługuje istniejących klientów i nowych)
   const [formData, setFormData] = useState<ClientFormData>({
-    companyName: initial?.companyName ?? '',
-    type: initial?.type ?? 'sklep',
-    contactPerson: initial?.contactPerson ?? '',
-    email: initial?.email ?? '',
-    phone: initial?.phone ?? '',
-    address: initial?.address ?? { province: '', zipCode: '', city: '', street: '', number: '' }
+    companyName: initial?.companyName || '',
+    type: initial?.type || 'company',
+    contactPerson: initial?.contactPerson || '',
+    email: initial?.email || '',
+    phone: initial?.phone || '',
+    address: initial?.address || '',
+    zipCode: initial?.zipCode || '',
+    province: initial?.province || '',
+    notes: initial?.notes || ''
   });
 
-  const handleZip = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let v = e.target.value.replace(/\D/g, '');
-    if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2, 5);
-    setFormData({...formData, address: {...formData.address, zipCode: v}});
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [formData.notes]);
+
+  const voivodeshipMap: { [key: string]: string } = {
+    '0': 'Mazowieckie',
+    '1': 'Podlaskie / Warmińsko-Mazurskie',
+    '2': 'Lubelskie / Świętokrzyskie',
+    '3': 'Małopolskie / Podkarpackie',
+    '4': 'Śląskie / Opolskie',
+    '5': 'Dolnośląskie',
+    '6': 'Wielkopolskie / Lubuskie',
+    '7': 'Zachodniopomorskie / Pomorskie',
+    '8': 'Kujawsko-Pomorskie / Pomorskie',
+    '9': 'Łódzkie'
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    let newProvince = formData.province;
+
+    if (name === 'zipCode' && value.length >= 1) {
+      newProvince = voivodeshipMap[value[0]] || '';
+    }
+
+    setFormData(prev => ({ ...prev, [name]: value, province: newProvince }));
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl border border-white/20 animate-in fade-in zoom-in duration-300">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-          {initial ? 'Edycja Klienta' : 'Nowy Partner Biznesowy'}
-        </h2>
-        <div className="flex gap-2">
-          <button 
-            type="button"
-            onClick={() => setFormData({...formData, type: 'sklep'})}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${formData.type === 'sklep' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
-          >SKLEP 🏪</button>
-          <button 
-            type="button"
-            onClick={() => setFormData({...formData, type: 'hurt'})}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${formData.type === 'hurt' ? 'bg-blue-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
-          >HURT 📦</button>
+    <div style={styles.container}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0 }}>{initial ? 'Edytuj dane' : 'Dodaj nowego klienta'}</h2>
+        <button onClick={onCancel} style={styles.closeBtn}>✕</button>
+      </div>
+      
+      <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+        <div style={{ flex: 1 }}>
+          <label style={styles.label}>Typ</label>
+          <select name="type" value={formData.type} onChange={handleChange} style={styles.input}>
+            <option value="company">Firma</option>
+            <option value="individual">Osoba prywatna</option>
+          </select>
+        </div>
+        <div style={{ flex: 3 }}>
+          <label style={styles.label}>Nazwa firmy / Klienta</label>
+          <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} style={styles.input} />
         </div>
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-5">
-          <div className="group">
-            <label className="text-xs font-bold text-slate-400 uppercase ml-1">Nazwa Firmy</label>
-            <input required className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none" 
-              value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} />
-          </div>
-          <div className="group">
-            <label className="text-xs font-bold text-slate-400 uppercase ml-1">Osoba Kontaktowa</label>
-            <input className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none" 
-              value={formData.contactPerson} onChange={e => setFormData({...formData, contactPerson: e.target.value})} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">E-mail</label>
-              <input type="email" className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none" 
-                value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Telefon</label>
-              <input className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 transition-all outline-none" 
-                value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-            </div>
-          </div>
-        </div>
+      <div style={styles.fieldGroup}>
+        <label style={styles.label}>Osoba kontaktowa</label>
+        <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} style={styles.input} />
+      </div>
 
-        <div className="space-y-5 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
-          <div>
-            <label className="text-xs font-bold text-slate-400 uppercase ml-1">Województwo</label>
-            <select required className="w-full bg-white border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-              value={formData.address.province} onChange={e => setFormData({...formData, address: {...formData.address, province: e.target.value}})}>
-              <option value="">Wybierz...</option>
-              {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-4">
-            <div className="w-1/3">
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Kod</label>
-              <input placeholder="00-000" className="w-full bg-white border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-                value={formData.address.zipCode} onChange={handleZip} />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Miasto</label>
-              <input className="w-full bg-white border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-                value={formData.address.city} onChange={e => setFormData({...formData, address: {...formData.address, city: e.target.value}})} />
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Ulica</label>
-              <input className="w-full bg-white border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-                value={formData.address.street} onChange={e => setFormData({...formData, address: {...formData.address, street: e.target.value}})} />
-            </div>
-            <div className="w-1/4">
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Nr</label>
-              <input className="w-full bg-white border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-                value={formData.address.number} onChange={e => setFormData({...formData, address: {...formData.address, number: e.target.value}})} />
-            </div>
-          </div>
-        </div>
+      <div style={styles.fieldGroup}>
+        <label style={styles.label}>Adres E-mail</label>
+        <input type="email" name="email" value={formData.email} onChange={handleChange} style={styles.input} />
+      </div>
 
-        <div className="col-span-full flex justify-end gap-3 mt-4">
-          <button type="button" onClick={onCancel} className="px-6 py-3 text-slate-400 font-bold hover:text-slate-600 transition-all">Anuluj</button>
-          <button type="submit" className="px-10 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:bg-blue-600 hover:-translate-y-1 transition-all active:scale-95">
-            {initial ? 'Zapisz zmiany' : 'Dodaj Klienta do Bazy'}
-          </button>
+      <div style={styles.fieldGroup}>
+        <label style={styles.label}>Telefon</label>
+        <input type="tel" name="phone" value={formData.phone} onChange={handleChange} style={styles.input} />
+      </div>
+
+      <div style={styles.fieldGroup}>
+        <label style={styles.label}>Adres (Ulica i nr)</label>
+        <input type="text" name="address" value={formData.address} onChange={handleChange} style={styles.input} />
+      </div>
+
+      <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ flex: 1 }}>
+          <label style={styles.label}>Kod pocztowy</label>
+          <input type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} style={styles.input} placeholder="00-000" />
         </div>
-      </form>
+        <div style={{ flex: 2 }}>
+          <label style={styles.label}>Województwo</label>
+          <input type="text" name="province" value={formData.province} readOnly style={{ ...styles.input, backgroundColor: '#f0f0f0' }} />
+        </div>
+      </div>
+
+      <div style={styles.fieldGroup}>
+        <label style={styles.label}>Notatki (pole rośnie automatycznie)</label>
+        <textarea 
+          ref={textareaRef}
+          name="notes" 
+          value={formData.notes} 
+          onChange={handleChange} 
+          style={{ ...styles.input, minHeight: '80px', resize: 'none' }} 
+        />
+      </div>
+
+      <button onClick={() => onSubmit(formData)} style={styles.saveBtn}>
+        {initial ? 'Zapisz zmiany' : 'Dodaj klienta'}
+      </button>
     </div>
   );
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  container: { padding: '20px', backgroundColor: '#fff' },
+  fieldGroup: { marginBottom: '15px', display: 'flex', flexDirection: 'column' as const },
+  label: { fontWeight: 'bold', marginBottom: '5px', fontSize: '14px' },
+  input: {
+    border: '2px solid #000',
+    padding: '10px',
+    fontSize: '16px',
+    borderRadius: '4px',
+    color: '#000'
+  },
+  saveBtn: {
+    backgroundColor: '#000',
+    color: '#fff',
+    padding: '14px',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    width: '100%',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    marginTop: '10px'
+  },
+  closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }
 };
 
 export default ClientForm;
