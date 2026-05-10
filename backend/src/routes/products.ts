@@ -4,16 +4,15 @@ import { verifyToken } from '../middleware/auth';
 
 const router = Router();
 
-// Zabezpieczamy endpoint - tylko dla zalogowanych (P1-2)
 router.use(verifyToken);
 
-router.get('/', async (req, res) => {
+// GET /api/products — lista produktow z Firestore
+router.get('/', async (_req, res) => {
   try {
     const products = await getProducts();
     res.json(products);
   } catch (error) {
-    console.error("Błąd pobierania produktów:", error);
-    res.status(500).json({ error: 'Nie udało się pobrać listy produktów' });
+    res.status(500).json({ error: 'Nie udalo sie pobrac listy produktow' });
   }
 });
 

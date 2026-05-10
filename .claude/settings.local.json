@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem -Path \"D:\\\\DEV\\\\APLIKACJE\\\\app_cmr_pluszek\\\\CMR-Pluszek\" -Force)",
-      "Bash(Select-Object FullName, Name, PSIsContainer)"
+      "Bash(Select-Object FullName, Name, PSIsContainer)",
+      "Bash(npm run *)",
+      "PowerShell(Get-ChildItem \"D:\\\\DEV\\\\APLIKACJE\\\\app_cmr_pluszek\\\\CMR-Pluszek\\\\backend\" -Name | Where-Object { $_ -ne \"node_modules\" })"
     ]
   }
 }

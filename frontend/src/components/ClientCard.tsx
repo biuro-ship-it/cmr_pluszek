@@ -20,7 +20,6 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
     products: []
   });
 
-  // NOWE: Stan dla modułu Follow-Up
   const [planFollowUp, setPlanFollowUp] = useState(false);
   const [followUpData, setFollowUpData] = useState({
     dueDate: '',
@@ -59,7 +58,6 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
       const newInteraction = await createClientInteraction(client.id, formData);
       setInteractions([newInteraction, ...interactions]);
       
-      // NOWE: Zapisywanie zadania, jeśli checkbox zaznaczono
       if (planFollowUp && followUpData.dueDate) {
         await createFollowUp(client.id, {
           clientName: client.companyName,
@@ -75,6 +73,16 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
     } catch (err) {
       alert("Nie udało się zapisać kontaktu.");
     }
+  };
+
+  // NOWE: Funkcja generująca gotowy szablon e-maila
+  const handleGenerateEmail = () => {
+    const subject = encodeURIComponent(`Oferta współpracy - ${client.companyName} / Pluszek`);
+    const greeting = client.contactPerson ? `Dzień dobry Panie/Pani ${client.contactPerson},` : `Dzień dobry,`;
+    const body = encodeURIComponent(`${greeting}\n\nNawiązując do naszej rozmowy, przesyłam zarys propozycji współpracy...\n\n[Tutaj wpisz szczegóły wyceny lub załącz plik z ofertą]\n\nW razie jakichkolwiek pytań, pozostaję do dyspozycji.\n\nPozdrawiam serdecznie,`);
+    
+    // Uruchomienie domyślnego klienta poczty
+    window.location.href = `mailto:${client.email}?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -97,6 +105,16 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
           <p className="flex items-center gap-2 md:justify-end mb-1"><span>📞</span> <a href={`tel:${client.phone}`} className="hover:text-blue-600 font-bold">{client.phone || 'Brak'}</a></p>
           <p className="flex items-center gap-2 md:justify-end"><span>✉️</span> <a href={`mailto:${client.email}`} className="hover:text-blue-600 font-bold">{client.email || 'Brak'}</a></p>
           <p className="flex items-center gap-2 md:justify-end mt-2 text-xs"><span>📍</span> {client.address?.city}, {client.address?.street}</p>
+          
+          {/* NOWE: Przycisk Szybkiej Akcji (pojawia się tylko jeśli klient ma e-mail) */}
+          {client.email && (
+            <button 
+              onClick={handleGenerateEmail} 
+              className="mt-4 w-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-2.5 px-4 rounded-xl transition-colors text-xs flex items-center justify-center gap-2 shadow-sm"
+            >
+              <span className="text-base">📝</span> Generuj maila z ofertą
+            </button>
+          )}
         </div>
       </div>
 
@@ -122,7 +140,7 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">Forma kontaktu</label>
                 <select className="w-full bg-white border border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500"
-                  value={formData.channel} onChange={e => setFormData({...formData, channel: e.target.value as any})}>
+                  value={formData.channel} onChange={e => setFormData({...formData, channel: e.target.value as InteractionFormData['channel']})}>
                   <option value="telefon">📞 Telefon</option>
                   <option value="mail">✉️ E-mail</option>
                   <option value="spotkanie">🤝 Spotkanie</option>
@@ -160,7 +178,6 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
               </div>
             </div>
 
-            {/* NOWE: Moduł Follow-up */}
             <div className="mt-4 pt-4 border-t border-blue-200/50">
               <label className="flex items-center gap-2 cursor-pointer font-bold text-blue-900 mb-4 select-none">
                 <input 

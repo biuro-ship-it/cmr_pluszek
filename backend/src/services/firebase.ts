@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 
-// Wczytywanie klucza (upewnij się, że ścieżka jest poprawna)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const serviceAccount = require('../../serviceAccountKey.json');
 
 if (!admin.apps.length) {

@@ -5,8 +5,10 @@ import ClientList from '../components/ClientList';
 import ClientCard from '../components/ClientCard';
 import { Client, ClientFormData, FollowUp, getFollowUpSummary, updateFollowUpStatus } from '../services/api';
 
+import { User } from 'firebase/auth';
+
 interface DashboardProps {
-  user: any;
+  user: User;
   onSignOut: () => void;
 }
 
@@ -79,6 +81,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
     return dateStr < today;
   };
 
+  // Obliczanie statystyk do kafelków
+  const activeThisMonth = clients.filter(c => {
+    const dateToUse = c.lastContactAt || c.createdAt;
+    if (!dateToUse) return false;
+    const diffTime = new Date().getTime() - new Date(dateToUse).getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24)) <= 30;
+  }).length;
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <nav className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-10">
@@ -98,7 +108,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
 
       <main className="max-w-7xl mx-auto p-6">
         
-        {/* Panel zadań (ukryty gdy jesteśmy w karcie lub formularzu) */}
+        {/* NOWE: Statystyki (widoczne tylko na głównej liście) */}
+        {!viewClient && !showForm && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-in slide-in-from-top-4">
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-2xl">🏢</div>
+              <div>
+                <p className="text-sm text-slate-500 font-bold uppercase">Baza firm</p>
+                <p className="text-2xl font-black text-slate-800">{clients.length}</p>
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-2xl">⏰</div>
+              <div>
+                <p className="text-sm text-slate-500 font-bold uppercase">Zadania (Dziś / Zaległe)</p>
+                <p className="text-2xl font-black text-slate-800">{tasks.length}</p>
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-2xl">📈</div>
+              <div>
+                <p className="text-sm text-slate-500 font-bold uppercase">Aktywni (30 dni)</p>
+                <p className="text-2xl font-black text-slate-800">{activeThisMonth}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Panel zadań */}
         {!viewClient && !showForm && tasks.length > 0 && (
           <div className="mb-8">
             <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -128,18 +165,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
           </div>
         )}
 
-        {/* Dynamiczny Nagłówek Zależny Od Kontekstu */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-extrabold text-slate-900">
               {viewClient ? 'Karta Klienta' : showForm ? (editClient ? 'Edycja Klienta' : 'Nowy Klient') : 'Twoi Klienci'}
             </h2>
             <p className="text-slate-500">
-              {viewClient ? viewClient.companyName : showForm ? 'Wypełnij formularz poniżej' : `${clients.length} zarejestrowanych podmiotów`}
+              {viewClient ? viewClient.companyName : showForm ? 'Wypełnij formularz poniżej' : 'Zarządzaj swoją bazą relacji biznesowych'}
             </p>
           </div>
           
-          {/* Przycisk zależny od widoku */}
           {viewClient ? (
             <button 
               onClick={() => { setViewClient(null); loadTasks(); }} 

@@ -13,10 +13,10 @@ export const initializeBaseProducts = async () => {
     
     if (snapshot.empty) {
       const baseProducts = [
-        "Produkt Standardowy A",
-        "Produkt Premium B",
-        "Zestaw Akcesoriów C",
-        "Komponent Specjalistyczny D"
+        "Pluszek Maxi mix",
+        "Pluszek Midi mix",
+        "Pluszek siedzisko",
+        "Gabki kapielowe mix"
       ];
 
       for (const name of baseProducts) {
