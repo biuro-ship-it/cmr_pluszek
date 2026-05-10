@@ -31,3 +31,18 @@ logs/
 Thumbs.db
 #firebase
 serviceAccountKey.json
+.claude
+# Ignoruj foldery z kodem źródłowym (niepotrzebne na serwerze)
+frontend/
+middleware/
+routes/
+services/
+types/
+backend/src/
+
+# Ignoruj biblioteki (serwer sam je pobierze)
+node_modules/
+
+# Ignoruj śmieci systemowe i logi
+.DS_Store
+*.log
