@@ -207,6 +207,23 @@ export const updateClientInteraction = async (clientId: string, interactionId: s
   return response.json();
 };
 
+// ─── UPLOAD ZDJĘĆ ────────────────────────────────────────────────────────────
+
+export const uploadImage = async (file: File): Promise<string> => {
+  const auth = getAuth();
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_URL}/api/upload`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData,
+  });
+  if (!response.ok) throw new Error('Nie udało się wgrać zdjęcia');
+  const data = await response.json();
+  return data.url;
+};
+
 // ─── PRODUKTY ─────────────────────────────────────────────────────────────────
 
 export const getProductsList = async (): Promise<Product[]> => {

@@ -8,6 +8,7 @@ import clientRoutes from './routes/clients';
 import productRoutes from './routes/products';
 import followupRoutes from './routes/followups';
 import promotionRoutes from './routes/promotions';
+import uploadRoutes from './routes/upload';
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/followups', followupRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

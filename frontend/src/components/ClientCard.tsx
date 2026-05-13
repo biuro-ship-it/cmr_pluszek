@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Client, Interaction, InteractionFormData, Product,
   getClientInteractions, createClientInteraction, updateClientInteraction,
@@ -192,6 +192,44 @@ interface InteractionFormProps {
   clientName?: string;
 }
 
+// ─── Hook: dyktowanie głosowe ─────────────────────────────────────────────────
+const useSpeechRecognition = (onResult: (text: string) => void) => {
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const isSupported = typeof window !== 'undefined' &&
+    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const start = useCallback(() => {
+    if (!isSupported) return;
+    const SR = (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition })
+      .SpeechRecognition ?? (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition!;
+    const recognition = new SR();
+    recognition.lang = 'pl-PL';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = Array.from(e.results)
+        .slice(e.resultIndex)
+        .map(r => r[0].transcript)
+        .join('');
+      onResult(transcript);
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.start();
+    recognitionRef.current = recognition;
+    setListening(true);
+  }, [isSupported, onResult]);
+
+  const stop = useCallback(() => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  }, []);
+
+  return { listening, isSupported, start, stop };
+};
+
 const InteractionForm: React.FC<InteractionFormProps> = ({
   initialData, products, onSave, onCancel, saveLabel,
   withFollowUp = false, clientId, clientName
@@ -200,6 +238,13 @@ const InteractionForm: React.FC<InteractionFormProps> = ({
   const [planFollowUp, setPlanFollowUp] = useState(false);
   const [followUpData, setFollowUpData] = useState({ dueDate: '', reminderText: '' });
   const [saving, setSaving] = useState(false);
+
+  const { listening, isSupported, start, stop } = useSpeechRecognition((transcript) => {
+    setData(prev => ({
+      ...prev,
+      notes: prev.notes ? prev.notes + ' ' + transcript : transcript
+    }));
+  });
 
   const handleProductToggle = (name: string) => {
     setData(prev => ({
@@ -253,12 +298,37 @@ const InteractionForm: React.FC<InteractionFormProps> = ({
       </div>
 
       <div className="mb-6">
-        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Przebieg rozmowy (Notatki)</label>
+        <div className="flex items-center justify-between ml-1 mb-1">
+          <label className="text-xs font-bold text-slate-500 uppercase">Przebieg rozmowy (Notatki)</label>
+          {isSupported && (
+            <button
+              type="button"
+              onClick={listening ? stop : start}
+              title={listening ? 'Zatrzymaj dyktowanie' : 'Dyktuj głosem (pl)'}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-lg transition-all ${
+                listening
+                  ? 'bg-red-100 text-red-600 animate-pulse border border-red-200'
+                  : 'bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 border border-slate-200'
+              }`}
+            >
+              <span className="text-base">{listening ? '⏹' : '🎤'}</span>
+              {listening ? 'Słucham...' : 'Dyktuj'}
+            </button>
+          )}
+        </div>
         <textarea required rows={3}
-          className="w-full bg-white border border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500 resize-none"
-          placeholder="O czym rozmawialiście?"
+          className={`w-full bg-white border rounded-xl p-3 outline-none focus:border-blue-500 resize-none transition-colors ${
+            listening ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-200'
+          }`}
+          placeholder="O czym rozmawialiście? Możesz też użyć przycisku 🎤 aby dyktować."
           value={data.notes}
           onChange={e => setData({ ...data, notes: e.target.value })} />
+        {listening && (
+          <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+            <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+            Nagrywam — mów wyraźnie po polsku. Kliknij ⏹ aby zakończyć.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

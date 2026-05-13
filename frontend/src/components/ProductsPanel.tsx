@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../services/firebase';
 import {
   Product, ProductFormData,
-  getProductsList, createProduct, updateProduct, deleteProduct
+  getProductsList, createProduct, updateProduct, deleteProduct, uploadImage
 } from '../services/api';
 
 // ─── Pusty formularz ────────────────────────────────────────────────────────
@@ -35,9 +33,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initial, onSave, onCancel, sa
     setUploading(true);
     setUploadError('');
     try {
-      const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadImage(file);
       setForm(prev => ({ ...prev, imageUrl: url }));
     } catch {
       setUploadError('Nie udało się wgrać zdjęcia. Spróbuj ponownie.');
