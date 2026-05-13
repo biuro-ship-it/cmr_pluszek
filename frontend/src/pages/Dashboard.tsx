@@ -16,11 +16,11 @@ interface DashboardProps {
   onSignOut: () => void;
 }
 
-const NAV_TABS: { id: ActiveTab; label: string; icon: string }[] = [
-  { id: 'clients',    label: 'Klienci',   icon: '🏢' },
-  { id: 'addresses',  label: 'Adresy',    icon: '📍' },
-  { id: 'promotions', label: 'Promocje',  icon: '📢' },
-  { id: 'products',   label: 'Produkty',  icon: '📦' },
+const NAV_TABS: { id: ActiveTab; label: string; short: string; icon: string }[] = [
+  { id: 'clients',    label: 'Klienci',   short: 'Klienci',  icon: '🏢' },
+  { id: 'addresses',  label: 'Adresy',    short: 'Adresy',   icon: '📍' },
+  { id: 'promotions', label: 'Promocje',  short: 'Promocje', icon: '📢' },
+  { id: 'products',   label: 'Produkty',  short: 'Prod.',    icon: '📦' },
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
@@ -134,6 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                 }`}
               >
                 <span>{tab.icon}</span>
+                <span className="inline md:hidden text-xs">{tab.short}</span>
                 <span className="hidden md:inline">{tab.label}</span>
                 {tab.id === 'clients' && tasks.length > 0 && (
                   <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
