@@ -49,8 +49,8 @@ jobs:
       - name: Konfiguracja klucza SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa_pluszek
+          chmod 600 ~/.ssh/id_rsa_pluszek
           ssh-keyscan -H s61.mydevil.net >> ~/.ssh/known_hosts
 
       # ── 6. Deploy Frontend → public/ ─────────────────────────────────────────
@@ -58,7 +58,7 @@ jobs:
         run: |
           rsync -avz --delete \
             --exclude='uploads/' \
-            -e "ssh -i ~/.ssh/id_ed25519" \
+            -e "ssh -i ~/.ssh/id_rsa_pluszek" \
             ./frontend/dist/ \
             Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/public/
 
@@ -66,13 +66,13 @@ jobs:
       - name: Deploy backend dist
         run: |
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_ed25519" \
+            -e "ssh -i ~/.ssh/id_rsa_pluszek" \
             ./backend/dist/ \
             Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/dist/
 
       - name: Deploy package.json i app.js
         run: |
-          scp -i ~/.ssh/id_ed25519 \
+          scp -i ~/.ssh/id_rsa_pluszek \
             ./backend/package.json \
             ./backend/src/app.js \
             Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/
@@ -80,13 +80,13 @@ jobs:
       # ── 8. npm install na serwerze (tylko produkcyjne) ───────────────────────
       - name: npm install na serwerze
         run: |
-          ssh -i ~/.ssh/id_ed25519 Pluszek@s61.mydevil.net \
+          ssh -i ~/.ssh/id_rsa_pluszek Pluszek@s61.mydevil.net \
             "cd /usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs && npm install --omit=dev"
 
       # ── 9. Restart Passenger ─────────────────────────────────────────────────
       - name: Restart aplikacji
         run: |
-          ssh -i ~/.ssh/id_ed25519 Pluszek@s61.mydevil.net \
+          ssh -i ~/.ssh/id_rsa_pluszek Pluszek@s61.mydevil.net \
             "devil www restart crm.antyramy.eu"
 
       # ── 10. Health check ─────────────────────────────────────────────────────

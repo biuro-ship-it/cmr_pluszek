@@ -16,6 +16,7 @@ backend/dist/
 # ── Sekrety — NIGDY do Git ────────────────────────────────────────────────────
 serviceAccountKey.json
 backend/.env
+secret/
 
 # ── Notatki projektowe (prywatne) ─────────────────────────────────────────────
 notatki.md
