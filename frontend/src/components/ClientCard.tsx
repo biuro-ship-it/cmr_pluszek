@@ -192,24 +192,45 @@ interface InteractionFormProps {
   clientName?: string;
 }
 
+// ─── Typy Web Speech API ──────────────────────────────────────────────────────
+interface ISpeechRecognition extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: ISpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+interface ISpeechRecognitionEvent {
+  resultIndex: number;
+  results: { [key: number]: { [key: number]: { transcript: string } }; length: number };
+}
+type SpeechRecognitionConstructor = new () => ISpeechRecognition;
+
 // ─── Hook: dyktowanie głosowe ─────────────────────────────────────────────────
 const useSpeechRecognition = (onResult: (text: string) => void) => {
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+
+  const win = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
 
   const isSupported = typeof window !== 'undefined' &&
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+    (!!win.SpeechRecognition || !!win.webkitSpeechRecognition);
 
   const start = useCallback(() => {
     if (!isSupported) return;
-    const SR = (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition })
-      .SpeechRecognition ?? (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition!;
+    const SR = (win.SpeechRecognition ?? win.webkitSpeechRecognition)!;
     const recognition = new SR();
     recognition.lang = 'pl-PL';
     recognition.continuous = true;
     recognition.interimResults = false;
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = Array.from(e.results)
+    recognition.onresult = (e: ISpeechRecognitionEvent) => {
+      const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i])
         .slice(e.resultIndex)
         .map(r => r[0].transcript)
         .join('');
@@ -220,7 +241,7 @@ const useSpeechRecognition = (onResult: (text: string) => void) => {
     recognition.start();
     recognitionRef.current = recognition;
     setListening(true);
-  }, [isSupported, onResult]);
+  }, [isSupported, onResult, win]);
 
   const stop = useCallback(() => {
     recognitionRef.current?.stop();
