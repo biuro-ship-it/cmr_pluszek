@@ -22,7 +22,9 @@ jobs:
       # ── 3. Build Frontend ────────────────────────────────────────────────────
       - name: Instalacja zależności frontend
         working-directory: ./frontend
-        run: npm install
+        run: |
+          rm -f package-lock.json
+          npm install
 
       - name: Build frontend (Vite)
         working-directory: ./frontend
