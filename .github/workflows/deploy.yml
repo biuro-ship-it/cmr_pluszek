@@ -43,7 +43,9 @@ jobs:
       # ── 4. Build Backend ─────────────────────────────────────────────────────
       - name: Instalacja zależności backend
         working-directory: ./backend
-        run: npm ci
+        run: |
+          rm -f package-lock.json
+          npm install
 
       - name: Build backend (TypeScript)
         working-directory: ./backend
