@@ -1,0 +1,18 @@
+Twoja „Ściąga” do ręcznego wgrywania (żeby nic nie popsuć):
+Skoro zostajesz przy FTP/SFTP, oto krótka lista kontrolna, co gdzie ląduje:
+cd backend 
+cd frontend
+
+Zmiana w wyglądzie/funkcjach strony:
+
+Robisz npm run build w folderze frontend.
+
+Wszystko z folderu frontend/dist kopiujesz do /public_nodejs/public/.
+
+Zmiana w logice serwera (np. nowe API):
+
+Robisz npm run build w folderze backend.
+
+Wszystko z folderu backend/dist kopiujesz do /public_nodejs/dist/.
+
+Pamiętaj o restarcie: Po każdej zmianie w plikach backendu (w folderze dist), musisz „kopnąć” serwer w panelu MyDevil lub przez SSH: devil www restart crm.pluszek.pl.

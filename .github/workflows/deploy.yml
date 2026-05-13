@@ -1,0 +1,96 @@
+name: Deploy CRM Pluszek
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout repozytorium
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js ───────────────────────────────────────────────────────────
+      - name: Konfiguracja Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # ── 3. Build Frontend ────────────────────────────────────────────────────
+      - name: Instalacja zależności frontend
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend (Vite)
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: https://crm.pluszek.pl
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: npm run build
+
+      # ── 4. Build Backend ─────────────────────────────────────────────────────
+      - name: Instalacja zależności backend
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Build backend (TypeScript)
+        working-directory: ./backend
+        run: npm run build
+
+      # ── 5. Konfiguracja SSH ──────────────────────────────────────────────────
+      - name: Konfiguracja klucza SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H s61.mydevil.net >> ~/.ssh/known_hosts
+
+      # ── 6. Deploy Frontend → public/ ─────────────────────────────────────────
+      - name: Deploy frontend
+        run: |
+          rsync -avz --delete \
+            --exclude='uploads/' \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            ./frontend/dist/ \
+            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/public/
+
+      # ── 7. Deploy Backend → dist/ + pliki główne ─────────────────────────────
+      - name: Deploy backend dist
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            ./backend/dist/ \
+            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/dist/
+
+      - name: Deploy package.json i app.js
+        run: |
+          scp -i ~/.ssh/id_ed25519 \
+            ./backend/package.json \
+            ./backend/src/app.js \
+            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/
+
+      # ── 8. npm install na serwerze (tylko produkcyjne) ───────────────────────
+      - name: npm install na serwerze
+        run: |
+          ssh -i ~/.ssh/id_ed25519 Pluszek@s61.mydevil.net \
+            "cd /usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs && npm install --omit=dev"
+
+      # ── 9. Restart Passenger ─────────────────────────────────────────────────
+      - name: Restart aplikacji
+        run: |
+          ssh -i ~/.ssh/id_ed25519 Pluszek@s61.mydevil.net \
+            "devil www restart crm.antyramy.eu"
+
+      # ── 10. Health check ─────────────────────────────────────────────────────
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f https://crm.pluszek.pl/health || exit 1

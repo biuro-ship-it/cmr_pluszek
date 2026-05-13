@@ -1,48 +1,40 @@
-# Dependencies
+# ── Zależności ────────────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log
 yarn-error.log
-package-lock.json
-yarn.lock
 
-# Production
-/build
-/out
+# ── Build output (generowany przez CI — nie commitować) ───────────────────────
+frontend/dist/
+backend/dist/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Environment
+# ── Środowisko lokalne (NIE produkcja) ────────────────────────────────────────
 .env
 .env.local
 .env.*.local
-.env.*
+# .env.production jest OK do commita (nie zawiera sekretów)
 
-# Logs
-logs/
-*.log
-
-# OS
-Thumbs.db
-#firebase
+# ── Sekrety — NIGDY do Git ────────────────────────────────────────────────────
 serviceAccountKey.json
-.claude
-# Ignoruj foldery z kodem źródłowym (niepotrzebne na serwerze)
-frontend/
-middleware/
-routes/
-services/
-types/
-backend/src/
+backend/.env
 
-# Ignoruj biblioteki (serwer sam je pobierze)
-node_modules/
+# ── Notatki projektowe (prywatne) ─────────────────────────────────────────────
+notatki.md
+info.md
 
-# Ignoruj śmieci systemowe i logi
+# ── IDE / System ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.claude
+
+# ── Zbędny root package (pozostałość po npm install w root) ───────────────────
+/package-lock.json
+/package.json
+
+# ── Logi ──────────────────────────────────────────────────────────────────────
+logs/
 *.log
