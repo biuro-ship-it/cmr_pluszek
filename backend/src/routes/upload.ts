@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -34,15 +34,25 @@ const upload = multer({
 });
 
 // POST /api/upload
-router.post('/', verifyToken, upload.single('file'), (req: Request, res: Response) => {
-  if (!req.file) {
-    res.status(400).json({ error: 'Brak pliku' });
-    return;
-  }
-  // Zwracamy URL dostępny publicznie
-  const baseUrl = process.env.FRONTEND_URL?.split(',')[0] || 'https://crm.pluszek.pl';
-  const url = `${baseUrl}/uploads/${req.file.filename}`;
-  res.json({ url });
+router.post('/', verifyToken, (req: Request, res: Response, _next: NextFunction) => {
+  upload.single('file')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      res.status(400).json({ error: `Błąd uploadu: ${err.message}` });
+      return;
+    }
+    if (err) {
+      console.error('[upload] błąd multer:', err);
+      res.status(400).json({ error: err.message || 'Nie udało się zapisać pliku' });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: 'Brak pliku' });
+      return;
+    }
+    const baseUrl = process.env.FRONTEND_URL?.split(',')[0] || 'https://crm.pluszek.pl';
+    const url = `${baseUrl}/uploads/${req.file.filename}`;
+    res.json({ url });
+  });
 });
 
 export default router;

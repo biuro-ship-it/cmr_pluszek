@@ -66,7 +66,7 @@ jobs:
             --exclude='uploads/' \
             -e "ssh -i ~/.ssh/id_rsa_pluszek" \
             ./frontend/dist/ \
-            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/public/
+            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.pluszek.pl/public_nodejs/public/
 
       # ── 7. Deploy Backend → dist/ + pliki główne ─────────────────────────────
       - name: Deploy backend dist
@@ -74,26 +74,26 @@ jobs:
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/id_rsa_pluszek" \
             ./backend/dist/ \
-            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/dist/
+            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.pluszek.pl/public_nodejs/dist/
 
       - name: Deploy package.json i app.js
         run: |
           scp -i ~/.ssh/id_rsa_pluszek \
             ./backend/package.json \
             ./backend/src/app.js \
-            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs/
+            Pluszek@s61.mydevil.net:/usr/home/Pluszek/domains/crm.pluszek.pl/public_nodejs/
 
       # ── 8. npm install na serwerze (tylko produkcyjne) ───────────────────────
       - name: npm install na serwerze
         run: |
           ssh -i ~/.ssh/id_rsa_pluszek Pluszek@s61.mydevil.net \
-            "cd /usr/home/Pluszek/domains/crm.antyramy.eu/public_nodejs && npm install --omit=dev"
+            "cd /usr/home/Pluszek/domains/crm.pluszek.pl/public_nodejs && npm install --omit=dev"
 
       # ── 9. Restart Passenger ─────────────────────────────────────────────────
       - name: Restart aplikacji
         run: |
           ssh -i ~/.ssh/id_rsa_pluszek Pluszek@s61.mydevil.net \
-            "devil www restart crm.antyramy.eu"
+            "devil www restart crm.pluszek.pl"
 
       # ── 10. Health check ─────────────────────────────────────────────────────
       - name: Health check
