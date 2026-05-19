@@ -17,10 +17,11 @@ const app = express();
 // Wymagane dla Phusion Passenger (X-Forwarded-For)
 app.set('trust proxy', 1);
 
-// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla Google Sign-In popup)
+// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla Google Sign-In popup oraz wgranych zdjęć)
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginOpenerPolicy: { policy: 'unsafe-none' }, // wymagane dla Google Sign-In popup
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // NOWE: pozwala przeglądarce wyświetlać zdjęcia z serwera
 }));
 
 // 2. BEZPIECZEŃSTWO: Ograniczenie CORS - WERSJA KULOODPORNA
