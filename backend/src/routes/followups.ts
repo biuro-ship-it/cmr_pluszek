@@ -29,7 +29,8 @@ router.get('/summary', async (req, res) => {
 
     res.json(summary);
   } catch (error) {
-    res.status(500).json({ error: 'Nie udało się pobrać przypomnień' });
+    console.error('[followups] GET /summary błąd:', error);
+    res.status(500).json({ error: 'Nie udało się pobrać przypomnień', detail: String(error) });
   }
 });
 
@@ -51,14 +52,15 @@ router.post('/client/:clientId', async (req: AuthRequest, res) => {
     const docRef = await db.collection(COLLECTION).add(newFollowup);
     res.status(201).json({ id: docRef.id, ...newFollowup });
   } catch (error) {
-    res.status(500).json({ error: 'Nie udało się zaplanować kontaktu' });
+    console.error('[followups] POST /client błąd:', error);
+    res.status(500).json({ error: 'Nie udało się zaplanować kontaktu', detail: String(error) });
   }
 });
 
 router.patch('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Walidacja statusu
     const parsed = StatusSchema.safeParse(req.body.status);
     if (!parsed.success) return res.status(400).json({ error: 'Nieprawidłowy status' });
@@ -68,11 +70,22 @@ router.patch('/:id/status', async (req, res) => {
       completedAt: parsed.data === 'zrealizowane' ? new Date().toISOString() : null,
       updatedAt: new Date().toISOString()
     };
-    
-    await db.collection(COLLECTION).doc(id).update(updateData);
+
+    // Sprawdź czy dokument istnieje przed próbą update
+    const docRef = db.collection(COLLECTION).doc(id);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      console.error(`[followups] PATCH /${id}/status — dokument nie istnieje w kolekcji "${COLLECTION}"`);
+      return res.status(404).json({ error: 'Zadanie nie istnieje lub zostało już usunięte.' });
+    }
+
+    // set+merge zamiast update() — bezpieczniejszy, nie rzuca gdy pola się nie pokrywają
+    await docRef.set(updateData, { merge: true });
     res.json({ id, ...updateData });
   } catch (error) {
-    res.status(500).json({ error: 'Błąd podczas zmiany statusu zadania' });
+    console.error('[followups] PATCH /:id/status błąd:', error);
+    res.status(500).json({ error: 'Błąd podczas zmiany statusu zadania', detail: String(error) });
   }
 });
 

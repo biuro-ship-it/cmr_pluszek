@@ -48,7 +48,8 @@ router.get('/', async (_req, res) => {
     const clients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json(clients);
   } catch (error) {
-    res.status(500).json({ error: 'Błąd serwera' });
+    console.error('[clients] GET / błąd Firestore:', error);
+    res.status(500).json({ error: 'Błąd serwera', detail: String(error) });
   }
 });
 

@@ -83,8 +83,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
     try {
       await updateFollowUpStatus(taskId, 'zrealizowane');
       loadTasks();
-    } catch {
-      alert('Błąd podczas kończenia zadania.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Nieznany błąd serwera';
+      alert(`Błąd podczas kończenia zadania:\n${msg}`);
     }
   };
 

@@ -10,7 +10,7 @@ import followupRoutes from './routes/followups';
 import promotionRoutes from './routes/promotions';
 import uploadRoutes from './routes/upload';
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 

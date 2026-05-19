@@ -45,11 +45,16 @@ const path_1 = __importDefault(require("path")); // DODANE: obsługa ścieżek
 const clients_1 = __importDefault(require("./routes/clients"));
 const products_1 = __importDefault(require("./routes/products"));
 const followups_1 = __importDefault(require("./routes/followups"));
-dotenv.config();
+const promotions_1 = __importDefault(require("./routes/promotions"));
+const upload_1 = __importDefault(require("./routes/upload"));
+dotenv.config({ path: path_1.default.join(__dirname, '..', '.env') });
 const app = (0, express_1.default)();
-// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla skryptów frontendu)
+// Wymagane dla Phusion Passenger (X-Forwarded-For)
+app.set('trust proxy', 1);
+// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla Google Sign-In popup)
 app.use((0, helmet_1.default)({
-    contentSecurityPolicy: false, // Wyłączone CSP dla łatwiejszego startu, można skonfigurować później
+    contentSecurityPolicy: false,
+    crossOriginOpenerPolicy: { policy: 'unsafe-none' }, // wymagane dla Google Sign-In popup
 }));
 // 2. BEZPIECZEŃSTWO: Ograniczenie CORS
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',');
@@ -68,10 +73,11 @@ app.use(express_1.default.json());
 // 3. OBSŁUGA FRONTENDU (DODANE)
 // Zakładamy, że folder 'public' stworzysz w katalogu głównym backendu
 app.use(express_1.default.static(path_1.default.join(__dirname, '..', 'public')));
-// 4. BEZPIECZEŃSTWO: Rate Limiting
+// 4. BEZPIECZEŃSTWO: Rate Limiting (validate false — wymagane dla Passenger)
 const limiter = (0, express_rate_limit_1.default)({
-    windowMs: 15 * 60 * 1000, // 15 minut
+    windowMs: 15 * 60 * 1000,
     max: 200,
+    validate: { xForwardedForHeader: false },
     message: { error: 'Zbyt wiele requestów. Spróbuj za chwilę.' }
 });
 app.use('/api/', limiter);
@@ -79,6 +85,8 @@ app.use('/api/', limiter);
 app.use('/api/clients', clients_1.default);
 app.use('/api/products', products_1.default);
 app.use('/api/followups', followups_1.default);
+app.use('/api/promotions', promotions_1.default);
+app.use('/api/upload', upload_1.default);
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

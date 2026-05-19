@@ -280,7 +280,10 @@ export const updateFollowUpStatus = async (id: string, status: 'zrealizowane' | 
   const response = await fetch(`${API_URL}/api/followups/${id}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status }),
   });
-  if (!response.ok) throw new Error('Błąd zmiany statusu zadania');
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || `Błąd serwera (${response.status})`);
+  }
 };
 
 // ─── PROMOCJE ─────────────────────────────────────────────────────────────────
