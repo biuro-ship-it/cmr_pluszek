@@ -56,14 +56,26 @@ app.use((0, helmet_1.default)({
     contentSecurityPolicy: false,
     crossOriginOpenerPolicy: { policy: 'unsafe-none' }, // wymagane dla Google Sign-In popup
 }));
-// 2. BEZPIECZEŃSTWO: Ograniczenie CORS
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',');
+// 2. BEZPIECZEŃSTWO: Ograniczenie CORS - WERSJA KULOODPORNA
+const fallbackOrigins = [
+    'https://crm.pluszek.pl',
+    'https://www.crm.pluszek.pl',
+    'http://localhost:5173'
+];
+// Pobieramy z .env jeśli działa, w przeciwnym razie używamy rezerwy
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',')
+    : fallbackOrigins;
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Zabezpieczenie: usuwamy ewentualny ukośnik na samym końcu adresu (częsty błąd)
+        const cleanOrigin = origin ? origin.replace(/\/$/, '') : '';
+        // Zezwalamy na ruch bez origin (np. z serwera) lub jeśli adres jest na liście (bądź rezerwowej)
+        if (!origin || allowedOrigins.includes(cleanOrigin) || fallbackOrigins.includes(cleanOrigin)) {
             callback(null, true);
         }
         else {
+            console.error(`Blokada CORS! Odrzucono zapytanie z adresu: ${origin}`);
             callback(new Error('Niedozwolony origin CORS'));
         }
     },

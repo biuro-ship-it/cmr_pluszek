@@ -63,6 +63,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
     setViewClient(client);
   };
 
+  // NOWA FUNKCJA: Skok do karty klienta prosto z listy zadań
+  const handleOpenClientFromTask = (clientId?: string) => {
+    if (!clientId) {
+      alert("Błąd: To zadanie nie ma przypisanego ID klienta.");
+      return;
+    }
+    
+    // Szukamy klienta w pobranej już bazie
+    const clientTarget = clients.find(c => c.id === clientId);
+    
+    if (clientTarget) {
+      // Otwieramy podgląd karty klienta (identycznie jak kliknięcie na liście)
+      handleViewClick(clientTarget);
+    } else {
+      alert("Nie znaleziono klienta w bazie. Prawdopodobnie został usunięty.");
+    }
+  };
+
   const handleSubmit = async (data: ClientFormData) => {
     setSubmitError(null);
     try {
@@ -110,7 +128,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
       {/* ── NAWIGACJA ─────────────────────────────────────────────────────── */}
       <nav className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex justify-between items-center sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          {/* Logo / tytuł */}
           <div className="flex items-center gap-2.5 shrink-0">
             <img
               src="/icon-192.png"
@@ -122,7 +139,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
             </h1>
           </div>
 
-          {/* Zakładki */}
           <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-1">
             {NAV_TABS.map(tab => (
               <button
@@ -164,7 +180,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
         {/* ── ZAKŁADKA: KLIENCI ─────────────────────────────────────────── */}
         {activeTab === 'clients' && (
           <>
-            {/* Statystyki (tylko lista) */}
             {!viewClient && !showForm && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 animate-in slide-in-from-top-4 duration-300">
                 <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex items-center gap-4">
@@ -191,7 +206,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
               </div>
             )}
 
-            {/* Panel zadań */}
+            {/* Panel zadań - ULEPSZONY WIDOK */}
             {!viewClient && !showForm && tasks.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
@@ -212,21 +227,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                           {isOverdue(task.dueDate) ? 'Zaległe' : 'Dziś'} ({task.dueDate})
                         </span>
                         <h3 className="font-bold text-slate-800 mt-2">{task.clientName}</h3>
-                        <p className="text-sm text-slate-600 mt-1">{task.reminderText}</p>
+                        <p className="text-sm text-slate-600 mt-1 mb-2">{task.reminderText}</p>
                       </div>
-                      <button
-                        onClick={() => handleCompleteTask(task.id!)}
-                        className="mt-3 w-full py-2 bg-white hover:bg-emerald-50 text-emerald-600 font-bold border border-emerald-200 rounded-xl transition-colors text-sm"
-                      >
-                        ✓ Zrobione
-                      </button>
+                      
+                      {/* NOWY UKŁAD PRZYCISKÓW */}
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => handleOpenClientFromTask(task.clientId)}
+                          className="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition-colors text-xs shadow-sm"
+                        >
+                          Otwórz kartę
+                        </button>
+                        <button
+                          onClick={() => handleCompleteTask(task.id!)}
+                          className="flex-1 py-2 bg-white hover:bg-emerald-50 text-emerald-600 font-bold border border-emerald-200 rounded-xl transition-colors text-xs"
+                        >
+                          ✓ Zrobione
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Nagłówek sekcji + przycisk */}
             <div className="flex justify-between items-center mb-5">
               <div>
                 <h2 className="text-2xl font-extrabold text-slate-900">
@@ -243,7 +267,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                   onClick={() => { setViewClient(null); loadTasks(); }}
                   className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-5 py-2.5 rounded-xl transition-all flex items-center gap-2"
                 >
-                  ← Wróć
+                  ← Wróć do listy
                 </button>
               ) : (
                 <button
@@ -275,21 +299,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
           </>
         )}
 
-        {/* ── ZAKŁADKA: ADRESY ─────────────────────────────────────────── */}
         {activeTab === 'addresses' && (
           <div className="animate-in fade-in duration-300">
             <AddressesView clients={clients} />
           </div>
         )}
 
-        {/* ── ZAKŁADKA: PROMOCJE ────────────────────────────────────────── */}
         {activeTab === 'promotions' && (
           <div className="animate-in fade-in duration-300">
             <PromotionsPanel />
           </div>
         )}
 
-        {/* ── ZAKŁADKA: PRODUKTY ────────────────────────────────────────── */}
         {activeTab === 'products' && (
           <div className="animate-in fade-in duration-300">
             <ProductsPanel />
