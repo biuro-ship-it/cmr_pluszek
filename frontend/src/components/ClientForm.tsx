@@ -11,14 +11,31 @@ interface ClientFormProps {
   onCancel: () => void;
 }
 
-const voivodeshipMap: Record<string, string> = {
-  '0': 'Mazowieckie', '1': 'Podlaskie / Warmińsko-Mazurskie', '2': 'Lubelskie / Świętokrzyskie',
-  '3': 'Małopolskie / Podkarpackie', '4': 'Śląskie / Opolskie', '5': 'Dolnośląskie',
-  '6': 'Wielkopolskie / Lubuskie', '7': 'Zachodniopomorskie / Pomorskie',
-  '8': 'Kujawsko-Pomorskie / Pomorskie', '9': 'Łódzkie',
-};
+// ─── Inteligentne mapowanie województw na podstawie 2 pierwszych cyfr kodu ───
+const getProvinceFromZip = (zip: string): string => {
+  const prefix = parseInt(zip.substring(0, 2), 10);
+  if (isNaN(prefix)) return '';
 
-interface NipResult { name: string; regon: string; city: string; street: string; zipCode: string; }
+  if (prefix >= 0 && prefix <= 9) return 'Mazowieckie';
+  if (prefix >= 10 && prefix <= 14) return 'Warmińsko-mazurskie';
+  if (prefix >= 15 && prefix <= 19) return 'Podlaskie';
+  if (prefix >= 20 && prefix <= 24) return 'Lubelskie';
+  if (prefix >= 25 && prefix <= 29) return 'Świętokrzyskie';
+  if (prefix >= 30 && prefix <= 34) return 'Małopolskie';
+  if (prefix >= 35 && prefix <= 39) return 'Podkarpackie';
+  if (prefix >= 40 && prefix <= 44) return 'Śląskie';
+  if (prefix >= 45 && prefix <= 49) return 'Opolskie';
+  if (prefix >= 50 && prefix <= 59) return 'Dolnośląskie';
+  if (prefix >= 60 && prefix <= 64) return 'Wielkopolskie';
+  if (prefix >= 65 && prefix <= 69) return 'Lubuskie';
+  // Kod 77 to Pomorskie, reszta 7x to Zachodniopomorskie
+  if ((prefix >= 70 && prefix <= 76) || prefix === 78 || prefix === 79) return 'Zachodniopomorskie';
+  if (prefix === 77 || (prefix >= 80 && prefix <= 84)) return 'Pomorskie';
+  if (prefix >= 85 && prefix <= 89) return 'Kujawsko-pomorskie';
+  if (prefix >= 90 && prefix <= 99) return 'Łódzkie';
+
+  return '';
+};
 
 // ─── Dostępne kolory relacji ───
 const RELATION_COLORS = [
@@ -32,15 +49,27 @@ const AddressForm: React.FC<{ value: Address; onChange: (addr: Address) => void;
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value: val } = e.target;
     let updated = { ...value, [name]: val };
-    if (name === 'zipCode' && val.length >= 1) updated.province = voivodeshipMap[val[0]] || updated.province;
+    
     if (name === 'zipCode') {
       const digits = val.replace(/\D/g, '').slice(0, 5);
+      // Formatujemy kod pocztowy (dodajemy myślnik)
       updated.zipCode = digits.length > 2 ? `${digits.slice(0, 2)}-${digits.slice(2)}` : digits;
-      if (digits.length >= 1) updated.province = voivodeshipMap[digits[0]] || updated.province;
+      
+      // Jeśli mamy minimum 2 cyfry, przypisujemy dokładne województwo
+      if (digits.length >= 2) {
+        const province = getProvinceFromZip(digits);
+        if (province) {
+          updated.province = province;
+        }
+      } else if (digits.length === 0) {
+        updated.province = ''; // Czyścimy woj. jeśli usunięto kod
+      }
     }
     onChange(updated);
   };
+
   const inputCls = 'w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-colors';
+  
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
