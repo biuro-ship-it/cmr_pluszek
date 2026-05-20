@@ -28,6 +28,7 @@ const ClientSchema = z.object({
   phone: z.string().optional().default(''),
   address: AddressSchema,
   shippingAddress: AddressSchema.optional(),
+  relationshipColor: z.string().optional().default('slate'), // DODANE: obsługa koloru relacji
 });
 
 const InteractionSchema = z.object({
@@ -67,6 +68,7 @@ router.post('/', async (req: AuthRequest, res) => {
       email: parsed.data.email,
       phone: parsed.data.phone,
       address: parsed.data.address,
+      relationshipColor: parsed.data.relationshipColor, // DODANE: Zapis koloru do bazy
       ...(parsed.data.shippingAddress ? { shippingAddress: parsed.data.shippingAddress } : {}),
       createdAt: now,
       updatedAt: now,
@@ -93,6 +95,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
       email: parsed.data.email,
       phone: parsed.data.phone,
       address: parsed.data.address,
+      relationshipColor: parsed.data.relationshipColor, // DODANE: Zapis koloru do bazy
       ...(parsed.data.shippingAddress ? { shippingAddress: parsed.data.shippingAddress } : {}),
       updatedAt: new Date().toISOString(),
       updatedBy: req.user?.email || 'Nieznany',

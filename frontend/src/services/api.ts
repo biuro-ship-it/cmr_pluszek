@@ -26,6 +26,7 @@ export interface Client {
   phone: string;
   address: Address;
   shippingAddress?: Address;
+  relationshipColor?: string; // DODANE: Kolor relacji
   lastContactAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -40,6 +41,7 @@ export interface ClientFormData {
   phone: string;
   address: Address;
   shippingAddress?: Address;
+  relationshipColor?: string; // DODANE: Kolor relacji
 }
 
 export interface Interaction {
