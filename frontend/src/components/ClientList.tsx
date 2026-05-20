@@ -19,13 +19,14 @@ const PROVINCES = [
 
 const PAGE_SIZE = 20;
 
-const getBorderColor = (colorId?: string) => {
+// NOWE: Kolorujemy całe tło fiszki zamiast samej ramki
+const getCardStyle = (colorId?: string) => {
   switch (colorId) {
-    case 'blue': return 'border-l-blue-400';
-    case 'emerald': return 'border-l-emerald-400';
-    case 'rose': return 'border-l-rose-400';
+    case 'blue': return 'bg-blue-50 border-blue-200';
+    case 'emerald': return 'bg-emerald-50 border-emerald-200';
+    case 'rose': return 'bg-rose-50 border-rose-200';
     case 'slate': 
-    default: return 'border-l-slate-200';
+    default: return 'bg-white border-slate-200';
   }
 };
 
@@ -95,10 +96,13 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView }) => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {paginated.map((client) => (
-          <div key={client.id} className={`bg-white p-5 rounded-2xl border-y border-r border-l-8 border-y-slate-200 border-r-slate-200 ${getBorderColor(client.relationshipColor)} shadow-sm hover:shadow-md transition-shadow group relative flex flex-col h-full`}>
+          <div 
+            key={client.id} 
+            className={`p-5 rounded-2xl border shadow-sm hover:shadow-md transition-shadow group relative flex flex-col h-full ${getCardStyle(client.relationshipColor)}`}
+          >
             <div className="flex justify-between items-start mb-4">
               <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${
-                client.type === 'hurt' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                client.type === 'hurt' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
               }`}>
                 {client.type}
               </span>
@@ -109,14 +113,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView }) => {
               {client.companyName}
               {renderDaysCounter(client)}
             </h3>
-            <p className="text-slate-500 text-sm mb-4">👤 {client.contactPerson || 'Brak osoby kontaktowej'}</p>
+            <p className="text-slate-600 text-sm mb-4">👤 {client.contactPerson || 'Brak osoby kontaktowej'}</p>
             
             <div className="space-y-2 mb-6 flex-grow">
-              <div className="flex items-center gap-2 text-xs text-slate-600"><span>📍</span><span>{client.address?.city || 'Brak miasta'}, {client.address?.province || 'Brak woj.'}</span></div>
-              <div className="flex items-center gap-2 text-xs text-slate-600"><span>📞</span><span>{client.phone || 'Brak telefonu'}</span></div>
+              <div className="flex items-center gap-2 text-xs text-slate-700"><span>📍</span><span>{client.address?.city || 'Brak miasta'}, {client.address?.province || 'Brak woj.'}</span></div>
+              <div className="flex items-center gap-2 text-xs text-slate-700"><span>📞</span><span>{client.phone || 'Brak telefonu'}</span></div>
             </div>
 
-            <button onClick={() => onView(client)} className="w-full mt-auto py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl transition-colors border border-slate-100">
+            <button onClick={() => onView(client)} className="w-full mt-auto py-2 bg-white/60 hover:bg-white text-slate-800 text-sm font-semibold rounded-xl transition-colors border border-black/5">
               Otwórz kartę klienta
             </button>
           </div>
