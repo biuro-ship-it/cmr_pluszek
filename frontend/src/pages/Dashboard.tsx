@@ -6,21 +6,22 @@ import ClientCard from '../components/ClientCard';
 import ProductsPanel from '../components/ProductsPanel';
 import AddressesView from '../components/AddressesView';
 import PromotionsPanel from '../components/PromotionsPanel';
+import NotesBoard from '../components/NotesBoard';
 import { Client, ClientFormData, FollowUp, getFollowUpSummary, updateFollowUpStatus } from '../services/api';
 import { User } from 'firebase/auth';
 
-type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions';
+type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes';
 
 interface DashboardProps {
   user: User;
   onSignOut: () => void;
 }
-
 const NAV_TABS: { id: ActiveTab; label: string; short: string; icon: string }[] = [
   { id: 'clients',    label: 'Klienci',   short: 'Klienci',  icon: '🏢' },
   { id: 'addresses',  label: 'Adresy',    short: 'Adresy',   icon: '📍' },
   { id: 'promotions', label: 'Promocje',  short: 'Promocje', icon: '📢' },
   { id: 'products',   label: 'Produkty',  short: 'Prod.',    icon: '📦' },
+  { id: 'notes',      label: 'Notatki',   short: 'Notatki',  icon: '📝' }, // <--- NOWE
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
@@ -316,7 +317,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
             <ProductsPanel />
           </div>
         )}
-
+        {activeTab === 'notes' && (
+          <NotesBoard />
+        )}
       </main>
     </div>
   );
