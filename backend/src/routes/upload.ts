@@ -49,7 +49,7 @@ router.post('/', verifyToken, (req: Request, res: Response, _next: NextFunction)
       res.status(400).json({ error: 'Brak pliku' });
       return;
     }
-    const baseUrl = process.env.FRONTEND_URL?.split(',')[0] || 'https://crm.pluszek.pl';
+    const baseUrl = process.env.BASE_URL || 'https://crm.pluszek.pl';
     const url = `${baseUrl}/uploads/${req.file.filename}`;
     res.json({ url });
   });

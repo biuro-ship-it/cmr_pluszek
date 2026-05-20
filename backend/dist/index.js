@@ -51,10 +51,11 @@ dotenv.config({ path: path_1.default.join(__dirname, '..', '.env') });
 const app = (0, express_1.default)();
 // Wymagane dla Phusion Passenger (X-Forwarded-For)
 app.set('trust proxy', 1);
-// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla Google Sign-In popup)
+// 1. BEZPIECZEŃSTWO: Helmet (z poprawką dla Google Sign-In popup oraz wgranych zdjęć)
 app.use((0, helmet_1.default)({
     contentSecurityPolicy: false,
     crossOriginOpenerPolicy: { policy: 'unsafe-none' }, // wymagane dla Google Sign-In popup
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // NOWE: pozwala przeglądarce wyświetlać zdjęcia z serwera
 }));
 // 2. BEZPIECZEŃSTWO: Ograniczenie CORS - WERSJA KULOODPORNA
 const fallbackOrigins = [

@@ -17,7 +17,7 @@ export default defineConfig({
         // Strategie cache dla API — network first (świeże dane), fallback na cache
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/crm\.antyramy\.eu\/api\/.*/i,
+            urlPattern: /^https:\/\/crm\.pluszek\.pl\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
