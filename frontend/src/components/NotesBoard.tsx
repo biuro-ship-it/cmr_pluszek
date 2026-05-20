@@ -10,7 +10,7 @@ interface Note {
   date: string;
   color: string;
   isImportant: boolean;
-  isUrgent: boolean; // NOWE: Znacznik Pilne
+  isUrgent: boolean; // Znacznik Pilne
 }
 
 // 2. Dostępne kolory fiszek (klasy Tailwind)
@@ -32,9 +32,9 @@ const NotesBoard: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [selectedColor, setSelectedColor] = useState(NOTE_COLORS[0]);
   const [isImportant, setIsImportant] = useState(false);
-  const [isUrgent, setIsUrgent] = useState(false); // Stan dla dynamitu
+  const [isUrgent, setIsUrgent] = useState(false);
 
-  // Tymczasowy stan z notatkami (później zastąpimy to pobieraniem z bazy)
+  // Tymczasowy stan z notatkami
   const [notes, setNotes] = useState<Note[]>([
     {
       id: '1',
@@ -52,7 +52,7 @@ const NotesBoard: React.FC = () => {
       date: '2026-05-20',
       color: 'bg-slate-100',
       isImportant: false,
-      isUrgent: true, // Testowy dynamit
+      isUrgent: true, 
     },
     {
       id: '3',
@@ -101,6 +101,11 @@ const NotesBoard: React.FC = () => {
   };
 
   const handleSave = () => {
+    // Używamy zmiennej file, żeby zadowolić TypeScripta
+    if (file) {
+      console.log("Przygotowany do wysłania plik:", file.name);
+    }
+
     if (!title.trim()) {
       alert("Podaj temat notatki!");
       return;
@@ -204,7 +209,7 @@ const NotesBoard: React.FC = () => {
                   <span className="text-sm font-bold text-amber-700">⭐ Ważne</span>
                 </label>
 
-                {/* Znacznik PILNE (NOWY) */}
+                {/* Znacznik PILNE */}
                 <label className="flex items-center gap-2 cursor-pointer bg-red-50 p-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors">
                   <input 
                     type="checkbox" 
@@ -268,7 +273,7 @@ const NotesBoard: React.FC = () => {
                 note.isUrgent ? 'border-red-400 shadow-red-100 shadow-lg' : 'border-black/5 shadow-sm'
               } transition-all hover:shadow-md ${note.color}`}
             >
-              {/* Odznaka priorytetu (bez animacji bounce) */}
+              {/* Odznaka priorytetu */}
               {(note.isUrgent || note.isImportant) && (
                 <div className="absolute -top-3 -right-3 bg-white text-xl p-1.5 rounded-full shadow-md border border-slate-100">
                   {note.isUrgent ? '🧨' : '⭐'}
