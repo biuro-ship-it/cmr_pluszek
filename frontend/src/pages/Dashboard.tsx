@@ -7,10 +7,11 @@ import ProductsPanel from '../components/ProductsPanel';
 import AddressesView from '../components/AddressesView';
 import PromotionsPanel from '../components/PromotionsPanel';
 import NotesBoard from '../components/NotesBoard';
+import FoamStockPanel from '../FoamStockPanel';
 import { Client, ClientFormData, FollowUp, getFollowUpSummary, updateFollowUpStatus } from '../services/api';
 import { User } from 'firebase/auth';
 
-type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes';
+type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes' | 'foam';
 
 interface DashboardProps {
   user: User;
@@ -22,6 +23,7 @@ const NAV_TABS: { id: ActiveTab; label: string; short: string; icon: string }[] 
   { id: 'promotions', label: 'Promocje',  short: 'Promocje', icon: '📢' },
   { id: 'products',   label: 'Produkty',  short: 'Prod.',    icon: '📦' },
   { id: 'notes',      label: 'Notatki',   short: 'Notatki',  icon: '📝' }, // <--- NOWE
+  { id: 'foam',       label: 'Pianki',    short: 'Pianki',   icon: '🎨' }, // <--- NOWE
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
@@ -319,6 +321,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
         )}
         {activeTab === 'notes' && (
           <NotesBoard />
+        )}
+        {activeTab === 'foam' && (
+          <FoamStockPanel />
         )}
       </main>
     </div>

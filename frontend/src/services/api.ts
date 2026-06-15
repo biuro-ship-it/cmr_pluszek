@@ -158,6 +158,33 @@ export interface NoteFormData {
   date?: string;
 }
 
+export interface FoamColor {
+  id: string;
+  name: string;
+  hex: string;
+  quantity: number;
+  minQuantity: number;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface FoamColorFormData {
+  name: string;
+  hex: string;
+  minQuantity: number;
+}
+
+export interface FoamMovement {
+  id: string;
+  delta: number;
+  reason: string;
+  resultingQuantity: number;
+  by: string;
+  at: string;
+}
+
 // ─── KONFIGURACJA API ────────────────────────────────────────────────────────
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -380,4 +407,68 @@ export const deleteNote = async (id: string): Promise<void> => {
 export const seedNotes = async (): Promise<void> => {
   const headers = await getHeaders();
   await fetch(`${API_URL}/api/notes/seed`, { method: 'POST', headers });
+};
+
+// ─── MAGAZYN PIANEK ───────────────────────────────────────────────────────────
+
+const FOAM_URL = `${API_URL}/api/foam-stock`;
+
+export const getFoamStock = async (): Promise<FoamColor[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(FOAM_URL, { headers });
+  if (!response.ok) throw new Error('Nie udało się pobrać stanu magazynu');
+  return response.json();
+};
+
+export const createFoamColor = async (data: FoamColorFormData): Promise<FoamColor> => {
+  const headers = await getHeaders();
+  const response = await fetch(FOAM_URL, {
+    method: 'POST', headers, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Nie udało się dodać koloru');
+  return response.json();
+};
+
+export const updateFoamColor = async (id: string, data: FoamColorFormData): Promise<FoamColor> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${FOAM_URL}/${id}`, {
+    method: 'PUT', headers, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Nie udało się zaktualizować koloru');
+  return response.json();
+};
+
+export const deleteFoamColor = async (id: string): Promise<void> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${FOAM_URL}/${id}`, { method: 'DELETE', headers });
+  if (!response.ok) throw new Error('Nie udało się usunąć koloru');
+};
+
+export const adjustFoamStock = async (
+  id: string,
+  delta: number,
+  reason?: string
+): Promise<{ id: string; quantity: number }> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${FOAM_URL}/${id}/adjust`, {
+    method: 'PATCH', headers, body: JSON.stringify({ delta, reason }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || `Nie udało się zmienić stanu (${response.status})`);
+  }
+  return response.json();
+};
+
+export const getFoamMovements = async (id: string): Promise<FoamMovement[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${FOAM_URL}/${id}/movements`, { headers });
+  if (!response.ok) throw new Error('Nie udało się pobrać historii ruchów');
+  return response.json();
+};
+
+// Jednorazowe wgranie startowych kolorów (po stronie serwera idempotentne)
+export const seedFoamStock = async (): Promise<void> => {
+  const headers = await getHeaders();
+  await fetch(`${FOAM_URL}/seed`, { method: 'POST', headers });
 };
