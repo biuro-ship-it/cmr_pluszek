@@ -135,6 +135,29 @@ export interface PromotionFormData {
   status: 'draft' | 'scheduled' | 'sent';
 }
 
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  color: string;
+  date: string;
+  isImportant: boolean;
+  isUrgent: boolean;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface NoteFormData {
+  title: string;
+  content: string;
+  color: string;
+  isImportant: boolean;
+  isUrgent: boolean;
+  date?: string;
+}
+
 // ─── KONFIGURACJA API ────────────────────────────────────────────────────────
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -318,4 +341,43 @@ export const deletePromotion = async (id: string): Promise<void> => {
   const headers = await getHeaders();
   const response = await fetch(`${API_URL}/api/promotions/${id}`, { method: 'DELETE', headers });
   if (!response.ok) throw new Error('Nie udało się usunąć promocji');
+};
+
+// ─── NOTATKI ──────────────────────────────────────────────────────────────────
+
+export const getNotes = async (): Promise<Note[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/notes`, { headers });
+  if (!response.ok) throw new Error('Nie udało się pobrać notatek');
+  return response.json();
+};
+
+export const createNote = async (data: NoteFormData): Promise<Note> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/notes`, {
+    method: 'POST', headers, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Nie udało się dodać notatki');
+  return response.json();
+};
+
+export const updateNote = async (id: string, data: NoteFormData): Promise<Note> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/notes/${id}`, {
+    method: 'PUT', headers, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Nie udało się zaktualizować notatki');
+  return response.json();
+};
+
+export const deleteNote = async (id: string): Promise<void> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/notes/${id}`, { method: 'DELETE', headers });
+  if (!response.ok) throw new Error('Nie udało się usunąć notatki');
+};
+
+// Jednorazowe wgranie przykładowych notatek (po stronie serwera idempotentne)
+export const seedNotes = async (): Promise<void> => {
+  const headers = await getHeaders();
+  await fetch(`${API_URL}/api/notes/seed`, { method: 'POST', headers });
 };

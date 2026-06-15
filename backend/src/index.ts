@@ -9,6 +9,7 @@ import productRoutes from './routes/products';
 import followupRoutes from './routes/followups';
 import promotionRoutes from './routes/promotions';
 import uploadRoutes from './routes/upload';
+import noteRoutes from './routes/notes';
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -73,6 +74,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/followups', followupRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/notes', noteRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

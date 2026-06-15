@@ -47,6 +47,7 @@ const products_1 = __importDefault(require("./routes/products"));
 const followups_1 = __importDefault(require("./routes/followups"));
 const promotions_1 = __importDefault(require("./routes/promotions"));
 const upload_1 = __importDefault(require("./routes/upload"));
+const notes_1 = __importDefault(require("./routes/notes"));
 dotenv.config({ path: path_1.default.join(__dirname, '..', '.env') });
 const app = (0, express_1.default)();
 // Wymagane dla Phusion Passenger (X-Forwarded-For)
@@ -100,6 +101,7 @@ app.use('/api/products', products_1.default);
 app.use('/api/followups', followups_1.default);
 app.use('/api/promotions', promotions_1.default);
 app.use('/api/upload', upload_1.default);
+app.use('/api/notes', notes_1.default);
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

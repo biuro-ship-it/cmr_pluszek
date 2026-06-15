@@ -1,16 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  color: string;
-  isImportant: boolean;
-  isUrgent: boolean; 
-}
+import { getNotes, createNote, updateNote, deleteNote, seedNotes, Note } from '../services/api';
 
 const NOTE_COLORS = [
   { id: 'yellow', bg: 'bg-yellow-100', border: 'border-yellow-300', hover: 'hover:border-yellow-400' },
@@ -23,8 +14,8 @@ const NOTE_COLORS = [
 const NotesBoard: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null); // NOWE: Śledzenie usuwania
-  
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -32,35 +23,26 @@ const NotesBoard: React.FC = () => {
   const [isImportant, setIsImportant] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
 
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: '1',
-      title: 'Procedura obsługi trudnego klienta',
-      content: '<p>Pamiętaj o <strong>uśmiechu</strong> i zachowaniu spokoju. Kroki postępowania:</p><ol><li>Wysłuchaj</li><li>Zaproponuj rozwiązanie</li></ol>',
-      date: '2026-05-20',
-      color: 'bg-rose-100',
-      isImportant: true,
-      isUrgent: false,
-    },
-    {
-      id: '2',
-      title: 'AWARIA: Problem z logowaniem na FTP',
-      content: '<p>Trzeba to naprawić natychmiast!</p>',
-      date: '2026-05-20',
-      color: 'bg-slate-100',
-      isImportant: false,
-      isUrgent: true, 
-    },
-    {
-      id: '3',
-      title: 'Pomysły na nową kampanię',
-      content: '<p>Wrzucić więcej postów na social media z użyciem nowych antyram.</p>',
-      date: '2026-05-19',
-      color: 'bg-yellow-100',
-      isImportant: false,
-      isUrgent: false,
-    }
-  ]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        await seedNotes(); // jednorazowo wgrywa przykłady (serwer pilnuje, by nie dublować)
+        const data = await getNotes();
+        if (active) setNotes(data);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : 'Nie udało się pobrać notatek');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const modules = {
     toolbar: [
@@ -96,26 +78,37 @@ const NotesBoard: React.FC = () => {
     setSelectedColor(NOTE_COLORS[0]);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (file) console.log("Zapisuję plik:", file.name);
     if (!title.trim()) { alert("Podaj temat notatki!"); return; }
 
-    if (editingNoteId) {
-      setNotes(notes.map(note => note.id === editingNoteId ? { ...note, title, content, color: selectedColor.bg, isImportant, isUrgent } : note));
-    } else {
-      const newNote: Note = {
-        id: Math.random().toString(),
-        title, content, date: new Date().toISOString().split('T')[0], color: selectedColor.bg, isImportant, isUrgent,
-      };
-      setNotes([...notes, newNote]);
+    setSaving(true);
+    try {
+      const payload = { title, content, color: selectedColor.bg, isImportant, isUrgent };
+      if (editingNoteId) {
+        const updated = await updateNote(editingNoteId, payload);
+        setNotes(prev => prev.map(note => note.id === editingNoteId ? updated : note));
+      } else {
+        const created = await createNote(payload);
+        setNotes(prev => [created, ...prev]);
+      }
+      handleCloseForm();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Nie udało się zapisać notatki');
+    } finally {
+      setSaving(false);
     }
-    handleCloseForm();
   };
 
-  // NOWE: Funkcja usuwania
-  const handleDeleteNote = (id: string) => {
-    setNotes(notes.filter(n => n.id !== id));
-    setDeleteConfirmId(null);
+  const handleDeleteNote = async (id: string) => {
+    try {
+      await deleteNote(id);
+      setNotes(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Nie udało się usunąć notatki');
+    } finally {
+      setDeleteConfirmId(null);
+    }
   };
 
   const sortedNotes = [...notes].sort((a, b) => {
@@ -128,7 +121,7 @@ const NotesBoard: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-300">
-      
+
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900">Tablica Notatek</h2>
@@ -177,8 +170,8 @@ const NotesBoard: React.FC = () => {
             <input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
           </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all shadow-sm text-base">
-              {editingNoteId ? '💾 Zapisz zmiany' : '💾 Utwórz notatkę'}
+            <button onClick={handleSave} disabled={saving} className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-sm text-base">
+              {saving ? '⏳ Zapisywanie...' : (editingNoteId ? '💾 Zapisz zmiany' : '💾 Utwórz notatkę')}
             </button>
             <button onClick={handleCloseForm} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-6 rounded-xl transition-all text-base">
               Anuluj
@@ -187,55 +180,60 @@ const NotesBoard: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {sortedNotes.length > 0 ? (
-          sortedNotes.map(note => (
-            <div key={note.id} className={`relative p-5 rounded-3xl border ${note.isUrgent ? 'border-red-400 shadow-red-100 shadow-lg' : 'border-black/5 shadow-sm'} transition-all hover:shadow-md flex flex-col ${note.color}`}>
-              {(note.isUrgent || note.isImportant) && (
-                <div className="absolute -top-3 -right-3 bg-white text-xl p-1.5 rounded-full shadow-md border border-slate-100">
-                  {note.isUrgent ? '🧨' : '⭐'}
-                </div>
-              )}
-              
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-extrabold text-slate-900 leading-tight pr-4">{note.title}</h3>
-              </div>
-              <p className="text-xs font-bold text-slate-500 mb-4 opacity-70 border-b border-black/10 pb-2">Dodano: {note.date}</p>
-              
-              <div className="text-sm text-slate-700 line-clamp-4 prose prose-sm max-w-none flex-grow mb-4" dangerouslySetInnerHTML={{ __html: note.content }} />
-              
-              {/* NOWE: Układ przycisków z usuwaniem */}
-              <div className="mt-auto pt-4 border-t border-black/10 flex gap-2">
-                {deleteConfirmId === note.id ? (
-                  <>
-                    <button onClick={() => handleDeleteNote(note.id)} className="flex-1 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors shadow-sm text-center">
-                      Tak, usuń
-                    </button>
-                    <button onClick={() => setDeleteConfirmId(null)} className="flex-1 text-xs font-bold bg-white/80 hover:bg-white px-3 py-1.5 rounded-lg transition-colors text-center text-slate-700">
-                      Anuluj
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={() => handleEditClick(note)} className="flex-1 text-xs font-bold bg-white/50 hover:bg-white px-3 py-1.5 rounded-lg transition-colors text-center text-slate-700 border border-black/5">
-                      Otwórz 🔍
-                    </button>
-                    <button 
-                      onClick={() => setDeleteConfirmId(note.id)} 
-                      className="px-3 py-1.5 bg-white/50 hover:bg-red-50 hover:text-red-600 text-slate-500 rounded-lg transition-colors border border-black/5" 
-                      title="Usuń notatkę"
-                    >
-                      🗑
-                    </button>
-                  </>
+      {loading ? (
+        <div className="text-center py-16 text-slate-500 bg-white rounded-2xl border border-slate-200 border-dashed">Ładowanie notatek...</div>
+      ) : error ? (
+        <div className="text-center py-16 text-red-600 bg-red-50 rounded-2xl border border-red-200 border-dashed">{error}</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {sortedNotes.length > 0 ? (
+            sortedNotes.map(note => (
+              <div key={note.id} className={`relative p-5 rounded-3xl border ${note.isUrgent ? 'border-red-400 shadow-red-100 shadow-lg' : 'border-black/5 shadow-sm'} transition-all hover:shadow-md flex flex-col ${note.color}`}>
+                {(note.isUrgent || note.isImportant) && (
+                  <div className="absolute -top-3 -right-3 bg-white text-xl p-1.5 rounded-full shadow-md border border-slate-100">
+                    {note.isUrgent ? '🧨' : '⭐'}
+                  </div>
                 )}
+
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-extrabold text-slate-900 leading-tight pr-4">{note.title}</h3>
+                </div>
+                <p className="text-xs font-bold text-slate-500 mb-4 opacity-70 border-b border-black/10 pb-2">Dodano: {note.date}</p>
+
+                <div className="text-sm text-slate-700 line-clamp-4 prose prose-sm max-w-none flex-grow mb-4" dangerouslySetInnerHTML={{ __html: note.content }} />
+
+                <div className="mt-auto pt-4 border-t border-black/10 flex gap-2">
+                  {deleteConfirmId === note.id ? (
+                    <>
+                      <button onClick={() => handleDeleteNote(note.id)} className="flex-1 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors shadow-sm text-center">
+                        Tak, usuń
+                      </button>
+                      <button onClick={() => setDeleteConfirmId(null)} className="flex-1 text-xs font-bold bg-white/80 hover:bg-white px-3 py-1.5 rounded-lg transition-colors text-center text-slate-700">
+                        Anuluj
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => handleEditClick(note)} className="flex-1 text-xs font-bold bg-white/50 hover:bg-white px-3 py-1.5 rounded-lg transition-colors text-center text-slate-700 border border-black/5">
+                        Otwórz 🔍
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(note.id)}
+                        className="px-3 py-1.5 bg-white/50 hover:bg-red-50 hover:text-red-600 text-slate-500 rounded-lg transition-colors border border-black/5"
+                        title="Usuń notatkę"
+                      >
+                        🗑
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-16 text-slate-500 bg-white rounded-2xl border border-slate-200 border-dashed">Brak notatek.</div>
-        )}
-      </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-16 text-slate-500 bg-white rounded-2xl border border-slate-200 border-dashed">Brak notatek.</div>
+          )}
+        </div>
+      )}
 
     </div>
   );
