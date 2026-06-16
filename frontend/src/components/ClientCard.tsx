@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import {
   Client, Interaction, InteractionFormData, Product,
   getClientInteractions, createClientInteraction, updateClientInteraction,
   getProductsList, createFollowUp
 } from '../services/api';
+import EmailSendModal from './EmailSendModal';
 
 type ExtendedClient = Client & { relationshipColor?: string };
 
@@ -249,6 +250,7 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -296,6 +298,7 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
           {client.email && (
             <div className="mt-4 flex flex-col gap-2">
               <button onClick={() => setShowEmailModal(true)} className="w-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold py-2.5 px-4 rounded-xl text-xs flex justify-center gap-2"><span className="text-base">📦</span> Wyślij ofertę produktów</button>
+              <button onClick={() => setShowTemplateModal(true)} className="w-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-2.5 px-4 rounded-xl text-xs flex justify-center gap-2"><span className="text-base">✉️</span> Wyślij mail z szablonu</button>
             </div>
           )}
         </div>
@@ -350,6 +353,7 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
         )}
       </div>
       {showEmailModal && <ProductEmailModal client={client} products={products} onClose={() => setShowEmailModal(false)} />}
+      {showTemplateModal && <EmailSendModal client={client} onClose={() => setShowTemplateModal(false)} />}
     </div>
   );
 };

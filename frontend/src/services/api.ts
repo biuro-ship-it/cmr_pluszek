@@ -472,3 +472,98 @@ export const seedFoamStock = async (): Promise<void> => {
   const headers = await getHeaders();
   await fetch(`${FOAM_URL}/seed`, { method: 'POST', headers });
 };
+
+// ─── ARCHIWUM / EKSPORT ──────────────────────────────────────────────────────
+
+export interface ArchiveData {
+  meta: { exportedAt: string; exportedBy: string; version: number; counts: Record<string, number> };
+  clients: any[];
+  interactions: any[];
+  products: any[];
+  promotions: any[];
+  notes: any[];
+  foamStock: any[];
+  foamMovements: any[];
+  followups: any[];
+}
+
+export const getArchive = async (): Promise<ArchiveData> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/archive`, { headers });
+  if (!response.ok) throw new Error('Nie udało się pobrać archiwum danych');
+  return response.json();
+};
+
+// ─── SZABLONY MAILI ──────────────────────────────────────────────────────────
+
+const EMAIL_TEMPLATES_URL = `${API_URL}/api/email-templates`;
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  category: string;
+  subject: string;
+  body: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface EmailTemplateFormData {
+  name: string;
+  category: string;
+  subject: string;
+  body: string;
+}
+
+export const getEmailTemplates = async (): Promise<EmailTemplate[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(EMAIL_TEMPLATES_URL, { headers });
+  if (!response.ok) throw new Error('Nie udało się pobrać szablonów maili');
+  return response.json();
+};
+
+export const createEmailTemplate = async (data: EmailTemplateFormData): Promise<EmailTemplate> => {
+  const headers = await getHeaders();
+  const response = await fetch(EMAIL_TEMPLATES_URL, { method: 'POST', headers, body: JSON.stringify(data) });
+  if (!response.ok) throw new Error('Nie udało się zapisać szablonu');
+  return response.json();
+};
+
+export const updateEmailTemplate = async (id: string, data: EmailTemplateFormData): Promise<EmailTemplate> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${EMAIL_TEMPLATES_URL}/${id}`, { method: 'PUT', headers, body: JSON.stringify(data) });
+  if (!response.ok) throw new Error('Nie udało się zaktualizować szablonu');
+  return response.json();
+};
+
+export const deleteEmailTemplate = async (id: string): Promise<void> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${EMAIL_TEMPLATES_URL}/${id}`, { method: 'DELETE', headers });
+  if (!response.ok) throw new Error('Nie udało się usunąć szablonu');
+};
+
+export const sendEmailFromTemplate = async (
+  id: string,
+  payload: { to: string; subject: string; body: string }
+): Promise<void> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${EMAIL_TEMPLATES_URL}/${id}/send`, { method: 'POST', headers, body: JSON.stringify(payload) });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => ({}));
+    throw new Error(errBody.error || 'Nie udało się wysłać maila');
+  }
+};
+
+// Podstawia placeholdery {{firma}}, {{osoba}}, {{email}}, {{telefon}}, {{nip}}, {{miasto}} danymi klienta.
+export const applyPlaceholders = (text: string, client: Client): string => {
+  const map: Record<string, string> = {
+    firma: client.companyName ?? '',
+    osoba: client.contactPerson ?? '',
+    email: client.email ?? '',
+    telefon: client.phone ?? '',
+    nip: client.nip ?? '',
+    miasto: client.address?.city ?? '',
+  };
+  return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (full, key) => (key in map ? map[key] : full));
+};

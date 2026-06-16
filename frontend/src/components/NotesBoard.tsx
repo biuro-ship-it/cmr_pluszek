@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { getNotes, createNote, updateNote, deleteNote, seedNotes, Note } from '../services/api';
 
 const NOTE_COLORS = [
@@ -44,15 +44,32 @@ const NotesBoard: React.FC = () => {
     return () => { active = false; };
   }, []);
 
-  const modules = {
-    toolbar: [
-      [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      ['link', 'table'],
-      ['clean']
-    ],
-  };
+  const quillRef = useRef<ReactQuill>(null);
+
+  // Wstawia prostą tabelę: pyta o liczbę wierszy/kolumn i woła moduł table z Quill 2.
+  const insertTable = useCallback(() => {
+    const editor = quillRef.current?.getEditor();
+    const tableModule = editor?.getModule('table') as { insertTable: (r: number, c: number) => void } | undefined;
+    if (!tableModule) return;
+    const rows = parseInt(window.prompt('Liczba wierszy tabeli:', '2') || '0', 10);
+    const cols = parseInt(window.prompt('Liczba kolumn tabeli:', '2') || '0', 10);
+    if (rows > 0 && cols > 0) tableModule.insertTable(rows, cols);
+  }, []);
+
+  const modules = useMemo(() => ({
+    table: true,
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        ['link'],
+        ['table'],
+        ['clean'],
+      ],
+      handlers: { table: insertTable },
+    },
+  }), [insertTable]);
 
   const handleEditClick = (note: Note) => {
     setEditingNoteId(note.id);
@@ -162,7 +179,7 @@ const NotesBoard: React.FC = () => {
           <div className="mb-4">
             <label className="block text-sm font-bold text-slate-700 mb-1">Treść (Edytor)</label>
             <div className="bg-white rounded-xl overflow-hidden border border-slate-300">
-              <ReactQuill theme="snow" value={content} onChange={setContent} modules={modules} className="h-64 mb-10" />
+              <ReactQuill ref={quillRef} theme="snow" value={content} onChange={setContent} modules={modules} className="h-64 mb-10" />
             </div>
           </div>
           <div className="mb-6">

@@ -8,10 +8,12 @@ import AddressesView from '../components/AddressesView';
 import PromotionsPanel from '../components/PromotionsPanel';
 import NotesBoard from '../components/NotesBoard';
 import FoamStockPanel from '../FoamStockPanel';
+import ArchivePanel from '../components/ArchivePanel';
+import EmailTemplatesPanel from '../components/EmailTemplatesPanel';
 import { Client, ClientFormData, FollowUp, getFollowUpSummary, updateFollowUpStatus } from '../services/api';
 import { User } from 'firebase/auth';
 
-type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes' | 'foam';
+type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes' | 'foam' | 'mail' | 'archive';
 
 interface DashboardProps {
   user: User;
@@ -24,6 +26,8 @@ const NAV_TABS: { id: ActiveTab; label: string; short: string; icon: string }[] 
   { id: 'products',   label: 'Produkty',  short: 'Prod.',    icon: '📦' },
   { id: 'notes',      label: 'Notatki',   short: 'Notatki',  icon: '📝' }, // <--- NOWE
   { id: 'foam',       label: 'Pianki',    short: 'Pianki',   icon: '🎨' }, // <--- NOWE
+  { id: 'mail',       label: 'Maile',     short: 'Maile',    icon: '✉️' },
+  { id: 'archive',    label: 'Archiwum',  short: 'Archiw.',  icon: '💾' },
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
@@ -324,6 +328,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
         )}
         {activeTab === 'foam' && (
           <FoamStockPanel />
+        )}
+        {activeTab === 'mail' && (
+          <div className="animate-in fade-in duration-300">
+            <EmailTemplatesPanel />
+          </div>
+        )}
+        {activeTab === 'archive' && (
+          <div className="animate-in fade-in duration-300">
+            <ArchivePanel />
+          </div>
         )}
       </main>
     </div>

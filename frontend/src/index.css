@@ -12,3 +12,23 @@
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+/* Tabele w notatkach (Quill 2) — widoczne obramowania w edytorze i na kartce */
+.ql-editor table,
+.prose table {
+  border-collapse: collapse;
+}
+.ql-editor table td,
+.ql-editor table th,
+.prose table td,
+.prose table th {
+  border: 1px solid #cbd5e1;
+  padding: 4px 8px;
+}
+
+/* Ikona przycisku „Wstaw tabelę" w pasku narzędzi edytora notatek */
+.ql-toolbar button.ql-table::after {
+  content: "▦";
+  font-size: 15px;
+  line-height: 1;
+}

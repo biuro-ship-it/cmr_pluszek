@@ -48,9 +48,12 @@ export interface Product {
 export interface EmailTemplate {
   id?: string;
   name: string;
+  category: string;          // 'oferta' | 'follow-up' | 'podziękowanie' | 'inne'
   subject: string;
   body: string;
-  type: 'welcome' | 'order_thanks' | 'promo';
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FollowUp {
