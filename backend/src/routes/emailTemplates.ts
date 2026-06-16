@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { db } from '../services/firebase';
 import { verifyToken, AuthRequest } from '../middleware/auth';
 import { EmailTemplate } from '../types';
-import { sendEmail } from '../services/gmail';
 
 const router = Router();
 router.use(verifyToken);
@@ -15,12 +14,6 @@ const TemplateSchema = z.object({
   category: z.string().min(1, 'Kategoria jest wymagana'),
   subject: z.string().min(1, 'Temat maila jest wymagany'),
   body: z.string().min(1, 'Treść szablonu jest wymagana'),
-});
-
-const SendSchema = z.object({
-  to: z.string().email('Nieprawidłowy adres email'),
-  subject: z.string().min(1, 'Temat jest wymagany'),
-  body: z.string().min(1, 'Treść jest wymagana'),
 });
 
 // GET /api/email-templates — lista szablonów (najnowsze na górze)
@@ -98,53 +91,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// POST /api/email-templates/:id/send — wyślij gotowy mail (subject/body już z podstawionymi danymi klienta)
-router.post('/:id/send', async (req: AuthRequest, res: Response) => {
-  const parsed = SendSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten().fieldErrors });
-    return;
-  }
-
-  const { to, subject, body } = parsed.data;
-
-  const htmlBody = `<!DOCTYPE html>
-<html lang="pl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-
-        <tr><td style="background:#2563eb;padding:28px 36px">
-          <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px">Pluszek</div>
-        </td></tr>
-
-        <tr><td style="padding:32px 36px;color:#334155;font-size:15px;line-height:1.8">
-          ${body.replace(/\n/g, '<br>')}
-        </td></tr>
-
-        <tr><td style="background:#f8fafc;padding:20px 36px;border-top:1px solid #e2e8f0">
-          <p style="margin:0;font-size:12px;color:#94a3b8">
-            Z poważaniem,<br>
-            <strong style="color:#334155">Zespół Pluszek</strong>
-          </p>
-        </td></tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-
-  try {
-    await sendEmail({ to, subject, htmlBody });
-    res.json({ success: true, message: 'Mail wysłany' });
-  } catch (error) {
-    console.error('[email-templates] POST /:id/send błąd wysyłki:', error);
-    const message = error instanceof Error ? error.message : 'Błąd wysyłki maila';
-    res.status(500).json({ error: message });
-  }
-});
+// Uwaga: wysyłka maili odbywa się po stronie klienta (mailto: w EmailSendModal),
+// otwierając domyślny program pocztowy użytkownika. Backend trzyma tylko szablony.
 
 export default router;

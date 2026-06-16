@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Client, EmailTemplate,
-  getEmailTemplates, sendEmailFromTemplate, applyPlaceholders,
+  getEmailTemplates, applyPlaceholders,
 } from '../services/api';
 
 interface EmailSendModalProps {
@@ -22,8 +22,7 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
   const [selected, setSelected] = useState<EmailTemplate | null>(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [opened, setOpened] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -41,18 +40,12 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
     setError('');
   };
 
-  const handleSend = async () => {
-    if (!selected || !client.email) return;
-    setSending(true);
-    setError('');
-    try {
-      await sendEmailFromTemplate(selected.id, { to: client.email, subject, body });
-      setSent(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Błąd wysyłki');
-    } finally {
-      setSending(false);
-    }
+  // Otwiera domyślny program pocztowy (mailto) z gotowym mailem.
+  const handleSend = () => {
+    if (!client.email) return;
+    const mailto = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+    setOpened(true);
   };
 
   return (
@@ -67,11 +60,11 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {sent ? (
+          {opened ? (
             <div className="text-center py-10">
-              <div className="text-5xl mb-4">✅</div>
-              <p className="text-lg font-bold text-slate-800">Mail wysłany</p>
-              <p className="text-sm text-slate-500 mt-1">Wiadomość do <span className="font-semibold">{client.email}</span> została wysłana.</p>
+              <div className="text-5xl mb-4">📨</div>
+              <p className="text-lg font-bold text-slate-800">Otwarto program pocztowy</p>
+              <p className="text-sm text-slate-500 mt-1">Wiadomość do <span className="font-semibold">{client.email}</span> jest gotowa — wyślij ją w swoim programie pocztowym.</p>
               <button onClick={onClose} className="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl transition-colors">
                 Zamknij
               </button>
@@ -131,12 +124,12 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
           )}
         </div>
 
-        {!sent && selected && (
+        {!opened && selected && (
           <div className="px-6 py-4 border-t border-slate-100 flex justify-between items-center">
-            <span className="text-xs text-slate-400">Wysyłka przez Gmail (serwer)</span>
-            <button onClick={handleSend} disabled={sending || !subject || !body}
+            <span className="text-xs text-slate-400">Otworzy Twój program pocztowy</span>
+            <button onClick={handleSend} disabled={!subject || !body}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50">
-              {sending ? 'Wysyłam...' : '✉️ Wyślij'}
+              ✉️ Wyślij
             </button>
           </div>
         )}

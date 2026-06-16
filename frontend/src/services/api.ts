@@ -543,18 +543,6 @@ export const deleteEmailTemplate = async (id: string): Promise<void> => {
   if (!response.ok) throw new Error('Nie udało się usunąć szablonu');
 };
 
-export const sendEmailFromTemplate = async (
-  id: string,
-  payload: { to: string; subject: string; body: string }
-): Promise<void> => {
-  const headers = await getHeaders();
-  const response = await fetch(`${EMAIL_TEMPLATES_URL}/${id}/send`, { method: 'POST', headers, body: JSON.stringify(payload) });
-  if (!response.ok) {
-    const errBody = await response.json().catch(() => ({}));
-    throw new Error(errBody.error || 'Nie udało się wysłać maila');
-  }
-};
-
 // Podstawia placeholdery {{firma}}, {{osoba}}, {{email}}, {{telefon}}, {{nip}}, {{miasto}} danymi klienta.
 export const applyPlaceholders = (text: string, client: Client): string => {
   const map: Record<string, string> = {
