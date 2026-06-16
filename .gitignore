@@ -5,6 +5,7 @@ yarn-error.log
 
 # ── Build output (generowany przez CI — nie commitować) ───────────────────────
 frontend/dist/
+frontend/dist_build/
 backend/dist/
 
 # ── Środowisko lokalne (NIE produkcja) ────────────────────────────────────────
