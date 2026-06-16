@@ -170,14 +170,14 @@ const ColorCard: React.FC<ColorCardProps> = ({ color, onAdjust, onEdit, onDelete
           <button
             disabled={busy}
             onClick={() => handleAdjust(1)}
-            className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-bold py-2 rounded-lg transition-colors"
+            className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold py-2 px-1 rounded-lg transition-colors whitespace-nowrap"
           >
             ➕ Przyjęcie
           </button>
           <button
             disabled={busy}
             onClick={() => handleAdjust(-1)}
-            className="flex-1 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white text-sm font-bold py-2 rounded-lg transition-colors"
+            className="flex-1 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white text-xs font-bold py-2 px-1 rounded-lg transition-colors whitespace-nowrap"
           >
             ➖ Wydanie
           </button>
@@ -306,12 +306,19 @@ const FoamStockPanel: React.FC = () => {
   };
 
   const lowCount = colors.filter(c => c.minQuantity > 0 && c.quantity < c.minQuantity).length;
+  const totalQuantity = colors.reduce((sum, c) => sum + c.quantity, 0);
 
   return (
     <div className="animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-900">Magazyn pianek</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-extrabold text-slate-900">Magazyn pianek</h2>
+            <span className="inline-flex items-baseline gap-1 bg-slate-900 text-white px-3 py-1 rounded-xl font-black text-lg leading-none">
+              {totalQuantity}
+              <span className="text-[11px] font-semibold text-slate-300">szt. łącznie</span>
+            </span>
+          </div>
           <p className="text-slate-500 text-sm mt-1">
             Stan płyt PU wg koloru — {colors.length} {colors.length === 1 ? 'kolor' : 'kolorów'}
             {lowCount > 0 && <span className="text-red-600 font-bold"> · {lowCount} z niskim stanem</span>}
