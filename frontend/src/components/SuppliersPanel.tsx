@@ -19,10 +19,8 @@ const SWATCH: Record<string, string> = {
   mint: 'bg-emerald-200',
 };
 
-const DEFAULT_CATEGORIES = ['Szkło', 'Drewno / Listwy', 'Opakowania / Kartony', 'Akcesoria / Zawieszki', 'Plexa', 'Kurierzy', 'Inne'];
-
 const emptyForm = (): SupplierFormData => ({
-  companyName: '', category: DEFAULT_CATEGORIES[0], email: '', phoneCompany: '', phoneSales: '', phoneOwner: '', whatsapp: '', messenger: '', notes: '', relationshipColor: 'default', files: [], materials: [],
+  companyName: '', category: '', email: '', phoneCompany: '', phoneSales: '', phoneOwner: '', whatsapp: '', messenger: '', notes: '', relationshipColor: 'default', files: [], materials: [],
   address: { street: '', zipCode: '', city: '' },
   contactNames: { company: '', sales: '', owner: '' },
   agreements: { discount: '', paymentTerm: '', deliveryFreq: '' },
@@ -40,7 +38,6 @@ export default function SuppliersPanel() {
   const [search, setSearch] = useState('');
 
   const [form, setForm] = useState<SupplierFormData>(emptyForm());
-  const [customCategory, setCustomCategory] = useState('');
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -65,19 +62,16 @@ export default function SuppliersPanel() {
         contactNames: supplier.contactNames || { company: '', sales: '', owner: '' },
         agreements: supplier.agreements || { discount: '', paymentTerm: '', deliveryFreq: '' },
       });
-      setCustomCategory(DEFAULT_CATEGORIES.includes(supplier.category) ? '' : supplier.category);
     } else {
       setEditingSupplier(null);
       setForm(emptyForm());
-      setCustomCategory('');
     }
     setShowForm(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalCategory = form.category === 'CUSTOM' ? customCategory : form.category;
-    const finalForm = { ...form, category: finalCategory };
+    const finalForm = { ...form };
     try {
       if (editingSupplier) {
         const updated = await updateSupplier(editingSupplier.id, finalForm);
@@ -147,13 +141,7 @@ export default function SuppliersPanel() {
               </div>
               <div>
                 <label className={labelCls}>Kategoria</label>
-                <select value={DEFAULT_CATEGORIES.includes(form.category) ? form.category : 'CUSTOM'} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls}>
-                  {DEFAULT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  <option value="CUSTOM">+ Dodaj własną kategorię...</option>
-                </select>
-                {(form.category === 'CUSTOM' || (!DEFAULT_CATEGORIES.includes(form.category) && form.category !== '')) && (
-                  <input type="text" placeholder="Wpisz nazwę kategorii" required value={customCategory} onChange={e => setCustomCategory(e.target.value)} className={`${inputCls} mt-2`} />
-                )}
+                <input type="text" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls} placeholder="Wpisz kategorię (np. Szkło, Kartony...)" />
               </div>
             </div>
 

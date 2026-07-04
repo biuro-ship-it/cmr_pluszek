@@ -301,6 +301,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
               <ClientCard
                 client={viewClient}
                 onClose={() => { setViewClient(null); loadTasks(); }}
+                onDelete={async (id) => { await removeClient(id); setViewClient(null); loadTasks(); }}
               />
             ) : (
               <ClientList clients={clients} onEdit={handleEditClick} onDelete={removeClient} onView={handleViewClick} />

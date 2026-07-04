@@ -96,6 +96,7 @@ const ProductEmailModal: React.FC<ProductEmailModalProps> = ({ client, products,
 interface ClientCardProps {
   client: ExtendedClient;
   onClose: () => void;
+  onDelete?: (id: string) => void | Promise<void>;
 }
 
 const CHANNEL_ICON: Record<string, string> = { telefon: '📞', mail: '✉️', spotkanie: '🤝', inne: '📌' };
@@ -243,7 +244,7 @@ const getHeaderColor = (colorId?: string) => {
   }
 };
 
-const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
+const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) => {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -276,9 +277,25 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose }) => {
 
   return (
     <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 animate-in fade-in duration-300 overflow-hidden">
-      <button onClick={onClose} className="mb-6 flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-blue-600 transition-colors">
-        <span>←</span> Wróć do listy klientów
-      </button>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <button onClick={onClose} className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-blue-600 transition-colors">
+          <span>←</span> Wróć do listy klientów
+        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={async () => {
+              if (window.confirm(`Usunąć klienta "${client.companyName}"? Tej operacji nie można cofnąć.`)) {
+                await onDelete(client.id);
+                onClose();
+              }
+            }}
+            className="bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold text-sm px-4 py-2 transition-colors"
+          >
+            🗑 Usuń klienta
+          </button>
+        )}
+      </div>
 
       {/* Dynamiczny, kolorowy nagłówek karty */}
       <div className={`flex flex-col md:flex-row justify-between items-start border-b pb-6 mb-6 gap-4 p-6 -mx-8 -mt-2 rounded-t-2xl ${getHeaderColor(client.relationshipColor)}`}>
