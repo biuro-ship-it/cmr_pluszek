@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import {
-  Client, Interaction, InteractionFormData, Product,
+  Client, Interaction, InteractionFormData, Product, FakturowniaInvoice,
   getClientInteractions, createClientInteraction, updateClientInteraction,
-  getProductsList, createFollowUp
+  getProductsList, createFollowUp, fakturowniaLookup, openFakturowniaPdf
 } from '../services/api';
 import EmailSendModal from './EmailSendModal';
 
@@ -244,6 +244,17 @@ const getHeaderColor = (colorId?: string) => {
   }
 };
 
+const zlFmt = (n: number) =>
+  new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+const fkStatusLabel = (status: string): string => {
+  const map: Record<string, string> = {
+    paid: 'Zapłacona', issued: 'Wystawiona', sent: 'Wysłana',
+    partial: 'Częściowo', rejected: 'Odrzucona',
+  };
+  return map[status] || status || '—';
+};
+
 const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) => {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -252,6 +263,32 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) =>
   const [loading, setLoading] = useState(true);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+
+  // Faktury z Fakturowni (pobierane na żywo po NIP)
+  const [fkInvoices, setFkInvoices] = useState<FakturowniaInvoice[]>([]);
+  const [fkSyncedAt, setFkSyncedAt] = useState('');
+  const [fkLoading, setFkLoading] = useState(false);
+  const [fkError, setFkError] = useState('');
+
+  const handleFakturowniaSync = async () => {
+    const nip = (client.nip || '').replace(/[-\s]/g, '');
+    if (nip.length !== 10) { setFkError('Klient nie ma poprawnego NIP (wymagane 10 cyfr).'); return; }
+    setFkLoading(true); setFkError('');
+    try {
+      const { invoices } = await fakturowniaLookup(nip);
+      setFkInvoices(invoices);
+      setFkSyncedAt(new Date().toISOString());
+    } catch (e) {
+      setFkError(e instanceof Error ? e.message : 'Błąd synchronizacji z Fakturownią');
+    } finally {
+      setFkLoading(false);
+    }
+  };
+
+  const handleOpenPdf = async (id: number) => {
+    try { await openFakturowniaPdf(id); }
+    catch { alert('Nie udało się otworzyć PDF faktury.'); }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -319,6 +356,66 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) =>
             </div>
           )}
         </div>
+      </div>
+
+      {/* FAKTURY Z FAKTUROWNI (tylko odczyt) */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+          <h3 className="text-xl font-bold text-slate-800">🧾 Faktury (Fakturownia)</h3>
+          <div className="flex items-center gap-3 flex-wrap">
+            {fkSyncedAt && (
+              <span className="text-xs text-slate-400">zsync.: {new Date(fkSyncedAt).toLocaleString('pl-PL')}</span>
+            )}
+            <button
+              type="button"
+              onClick={handleFakturowniaSync}
+              disabled={fkLoading}
+              className="bg-slate-900 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
+            >
+              {fkLoading ? 'Pobieram…' : (fkSyncedAt ? '↻ Odśwież' : '⬇ Pobierz z Fakturowni')}
+            </button>
+          </div>
+        </div>
+        {fkError && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-3 mb-4">⚠️ {fkError}</div>}
+        {fkInvoices.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">
+            {fkSyncedAt ? 'Brak faktur dla tego klienta w Fakturowni.' : 'Kliknij „Pobierz z Fakturowni" (wymaga NIP na karcie klienta).'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-500 bg-slate-50 border-b border-slate-200">
+                  <th className="py-2.5 px-3 font-semibold">Numer</th>
+                  <th className="py-2.5 px-3 font-semibold">Data</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Netto</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Brutto</th>
+                  <th className="py-2.5 px-3 font-semibold">Status</th>
+                  <th className="py-2.5 px-3 font-semibold"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {fkInvoices.map(inv => (
+                  <tr key={inv.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <td className="py-2 px-3 font-medium text-slate-800">{inv.number}</td>
+                    <td className="py-2 px-3 text-slate-600 whitespace-nowrap">{inv.issueDate}</td>
+                    <td className="py-2 px-3 text-right font-mono whitespace-nowrap">{zlFmt(inv.priceNet)} {inv.currency}</td>
+                    <td className="py-2 px-3 text-right font-mono whitespace-nowrap text-slate-500">{zlFmt(inv.priceGross)} {inv.currency}</td>
+                    <td className="py-2 px-3">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{fkStatusLabel(inv.status)}</span>
+                    </td>
+                    <td className="py-2 px-3 text-right">
+                      <button type="button" onClick={() => handleOpenPdf(inv.id)} className="text-blue-600 hover:underline font-bold text-xs">PDF</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-slate-400 px-3 py-2 bg-slate-50 border-t border-slate-100">
+              Faktur: {fkInvoices.length} · suma netto: {zlFmt(fkInvoices.reduce((s, i) => s + i.priceNet, 0))} zł
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Historia kontaktów */}

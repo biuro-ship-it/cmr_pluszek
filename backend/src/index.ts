@@ -15,6 +15,7 @@ import archiveRoutes from './routes/archive';
 import emailTemplateRoutes from './routes/emailTemplates';
 import supplierRoutes from './routes/suppliers';
 import calculationRoutes from './routes/calculations';
+import fakturowniaRoutes from './routes/fakturownia';
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -85,6 +86,7 @@ app.use('/api/archive', archiveRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/calculations', calculationRoutes);
+app.use('/api/fakturownia', fakturowniaRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
