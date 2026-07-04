@@ -440,8 +440,8 @@ export default function CalculationsPanel() {
                     <h3 className="text-lg font-bold text-slate-800 mb-3 truncate" title={c.name}>{c.name}</h3>
                     <div className="text-sm text-slate-600 space-y-1.5 mb-4 flex-grow">
                       <p>Koszt całkowity / szt: <span className="font-black text-slate-800">{zl(r.totalPerUnit)} zł</span></p>
-                      <p>Cena (marża {c.margin1}%): <span className="font-bold text-emerald-600">{zl(r.price1)} zł</span></p>
-                      <p>Cena (marża {c.margin2}%): <span className="font-bold text-emerald-600">{zl(r.price2)} zł</span></p>
+                      <p>Cena (marża {c.margin1}%): <span className="font-bold text-emerald-600">{zl(r.price1)} zł</span> <span className="text-xs font-bold text-emerald-600">· zysk {zl(r.price1 - r.totalPerUnit)} zł/szt</span></p>
+                      <p>Cena (marża {c.margin2}%): <span className="font-bold text-emerald-600">{zl(r.price2)} zł</span> <span className="text-xs font-bold text-emerald-600">· zysk {zl(r.price2 - r.totalPerUnit)} zł/szt</span></p>
                       <p className="text-xs text-slate-400 pt-1">Składników: {c.components?.length ?? 0}</p>
                     </div>
                     <div className="flex gap-2 mt-auto border-t border-slate-100 pt-4">
