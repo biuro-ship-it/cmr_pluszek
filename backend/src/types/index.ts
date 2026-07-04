@@ -103,6 +103,7 @@ export interface SupplierAgreements {
 export interface Supplier {
   id?: string;
   companyName: string;
+  nip?: string;
   category: string;
   email: string;
   phoneCompany: string;

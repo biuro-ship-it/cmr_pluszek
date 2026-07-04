@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Supplier, SupplierFormData, getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../services/api';
+import { lookupNip } from '../utils/nip';
 import SupplierCard from './SupplierCard';
 
 const COLOR_CLASSES: Record<string, string> = {
@@ -20,7 +21,7 @@ const SWATCH: Record<string, string> = {
 };
 
 const emptyForm = (): SupplierFormData => ({
-  companyName: '', category: '', email: '', phoneCompany: '', phoneSales: '', phoneOwner: '', whatsapp: '', messenger: '', notes: '', relationshipColor: 'default', files: [], materials: [],
+  companyName: '', nip: '', category: '', email: '', phoneCompany: '', phoneSales: '', phoneOwner: '', whatsapp: '', messenger: '', notes: '', relationshipColor: 'default', files: [], materials: [],
   address: { street: '', zipCode: '', city: '' },
   contactNames: { company: '', sales: '', owner: '' },
   agreements: { discount: '', paymentTerm: '', deliveryFreq: '' },
@@ -38,6 +39,31 @@ export default function SuppliersPanel() {
   const [search, setSearch] = useState('');
 
   const [form, setForm] = useState<SupplierFormData>(emptyForm());
+  const [nipLoading, setNipLoading] = useState(false);
+  const [nipError, setNipError] = useState('');
+  const [nipSuccess, setNipSuccess] = useState('');
+
+  const handleNipLookup = async () => {
+    setNipLoading(true); setNipError(''); setNipSuccess('');
+    try {
+      const r = await lookupNip(form.nip ?? '');
+      setForm(prev => ({
+        ...prev,
+        companyName: r.companyName || prev.companyName,
+        address: {
+          ...prev.address!,
+          street: r.streetFull || prev.address?.street || '',
+          city: r.city || prev.address?.city || '',
+          zipCode: r.zipCode || prev.address?.zipCode || '',
+        },
+      }));
+      setNipSuccess(`✓ Znaleziono: ${r.companyName}${r.raw ? ` • ${r.raw}` : ''}`);
+    } catch (e) {
+      setNipError(e instanceof Error ? e.message : 'Nie znaleziono firmy w rejestrze VAT');
+    } finally {
+      setNipLoading(false);
+    }
+  };
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -66,6 +92,7 @@ export default function SuppliersPanel() {
       setEditingSupplier(null);
       setForm(emptyForm());
     }
+    setNipError(''); setNipSuccess('');
     setShowForm(true);
   };
 
@@ -137,6 +164,32 @@ export default function SuppliersPanel() {
             <button type="button" onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700 text-xl leading-none">✕</button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* RZĄD 0: Pobieranie danych po NIP */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <label className={labelCls}>NIP — pobierz dane z rejestru MF</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={form.nip ?? ''}
+                  onChange={e => { setForm({ ...form, nip: e.target.value }); setNipError(''); setNipSuccess(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleNipLookup(); } }}
+                  className={`${inputCls} sm:max-w-xs`}
+                  placeholder="np. 9930681097"
+                  inputMode="numeric"
+                />
+                <button
+                  type="button"
+                  onClick={handleNipLookup}
+                  disabled={nipLoading}
+                  className="bg-slate-900 hover:bg-blue-600 text-white font-bold px-5 py-3 rounded-xl transition-colors disabled:opacity-60 whitespace-nowrap"
+                >
+                  {nipLoading ? '⏳ Pobieram...' : '🔍 Pobierz dane'}
+                </button>
+              </div>
+              {nipError && <p className="text-xs text-rose-600 mt-2">⚠️ {nipError}</p>}
+              {nipSuccess && <p className="text-xs text-emerald-600 mt-2">{nipSuccess}</p>}
+            </div>
 
             {/* RZĄD 1: Dane Podstawowe */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

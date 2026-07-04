@@ -25,6 +25,7 @@ const MaterialSchema = z.object({
 
 const SupplierSchema = z.object({
   companyName: z.string().min(1, 'Nazwa firmy jest wymagana'),
+  nip: z.string().default(''),
   category: z.string().default('Inne'),
   email: z.string().default(''),
   phoneCompany: z.string().default(''),
