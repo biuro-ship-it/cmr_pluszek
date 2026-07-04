@@ -408,11 +408,13 @@ export default function CalculationsPanel() {
                 <p className="text-xs text-slate-300">Cena przy marży {form.margin1}%</p>
                 <p className="text-2xl font-black text-emerald-300">{zl(result.price1)} zł</p>
                 <p className="text-xs text-slate-400 mt-1">Za {form.productionQty || 0} szt: {zl(result.price1 * (form.productionQty || 0))} zł</p>
+                <p className="text-sm font-bold text-emerald-400 mt-1">💰 Zysk: {zl(result.price1 - result.totalPerUnit)} zł/szt <span className="text-emerald-300/80 font-semibold">(łącznie: {zl((result.price1 - result.totalPerUnit) * (form.productionQty || 0))} zł)</span></p>
               </div>
               <div className="bg-white/10 rounded-xl p-4">
                 <p className="text-xs text-slate-300">Cena przy marży {form.margin2}%</p>
                 <p className="text-2xl font-black text-emerald-300">{zl(result.price2)} zł</p>
                 <p className="text-xs text-slate-400 mt-1">Za {form.productionQty || 0} szt: {zl(result.price2 * (form.productionQty || 0))} zł</p>
+                <p className="text-sm font-bold text-emerald-400 mt-1">💰 Zysk: {zl(result.price2 - result.totalPerUnit)} zł/szt <span className="text-emerald-300/80 font-semibold">(łącznie: {zl((result.price2 - result.totalPerUnit) * (form.productionQty || 0))} zł)</span></p>
               </div>
             </div>
           </div>
