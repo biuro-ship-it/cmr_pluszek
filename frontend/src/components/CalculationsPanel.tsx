@@ -36,6 +36,13 @@ interface CalcResult {
   price2: number;
 }
 
+// Marża handlowa (od ceny sprzedaży): cena = koszt / (1 − marża/100).
+// Marża >= 100% jest niemożliwa (dzielenie przez <=0) → zwracamy 0.
+const priceFromMargin = (cost: number, marginPct: number): number => {
+  const divisor = 1 - marginPct / 100;
+  return divisor > 0 ? cost / divisor : 0;
+};
+
 const computeCalc = (form: CalculationFormData): CalcResult => {
   const matPerUnit = materialCostPerUnit(form.components);
   const transPerUnit = transportPerUnit(form.transportBrackets, form.productionQty);
@@ -44,8 +51,8 @@ const computeCalc = (form: CalculationFormData): CalcResult => {
     matPerUnit,
     transPerUnit,
     totalPerUnit,
-    price1: totalPerUnit * (1 + form.margin1 / 100),
-    price2: totalPerUnit * (1 + form.margin2 / 100),
+    price1: priceFromMargin(totalPerUnit, form.margin1),
+    price2: priceFromMargin(totalPerUnit, form.margin2),
   };
 };
 
@@ -334,12 +341,12 @@ export default function CalculationsPanel() {
           {/* MARŻE */}
           <div className="border-t border-slate-200 pt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Marża 1 (% narzutu na koszt)</label>
-              <input type="number" min={0} step="any" value={form.margin1} onChange={e => setForm({ ...form, margin1: parseNum(e.target.value) })} className={inputCls} />
+              <label className={labelCls}>Marża 1 (% od ceny sprzedaży)</label>
+              <input type="number" min={0} max={99} step="any" value={form.margin1} onChange={e => setForm({ ...form, margin1: parseNum(e.target.value) })} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Marża 2 (% narzutu na koszt)</label>
-              <input type="number" min={0} step="any" value={form.margin2} onChange={e => setForm({ ...form, margin2: parseNum(e.target.value) })} className={inputCls} />
+              <label className={labelCls}>Marża 2 (% od ceny sprzedaży)</label>
+              <input type="number" min={0} max={99} step="any" value={form.margin2} onChange={e => setForm({ ...form, margin2: parseNum(e.target.value) })} className={inputCls} />
             </div>
           </div>
 
