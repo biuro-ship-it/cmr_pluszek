@@ -9,6 +9,7 @@ interface ClientFormProps {
   initial?: ExtendedClient | null;
   onSubmit: (data: ExtendedClientFormData) => Promise<void> | void;
   onCancel: () => void;
+  onDelete?: (id: string) => void | Promise<void>;
 }
 
 // ─── Inteligentne mapowanie województw na podstawie 2 pierwszych cyfr kodu ───
@@ -130,7 +131,7 @@ const AddressForm: React.FC<{ value: Address; onChange: (addr: Address) => void;
   );
 };
 
-const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel }) => {
+const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel, onDelete }) => {
   const [formData, setFormData] = useState<ExtendedClientFormData>({
     companyName: initial?.companyName || '',
     type: (initial?.type as ClientType) || 'hurt',
@@ -329,7 +330,22 @@ const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel }) 
       </div>
 
       <div className="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-4">
-        <button type="button" onClick={onCancel} className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Anuluj</button>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={onCancel} className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Anuluj</button>
+          {initial && onDelete && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (initial.id && window.confirm(`Czy na pewno usunąć klienta "${initial.companyName}"? Tej operacji nie można cofnąć.`)) {
+                  await onDelete(initial.id);
+                }
+              }}
+              className="px-6 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-bold transition-colors"
+            >
+              🗑 Usuń klienta
+            </button>
+          )}
+        </div>
         <button type="submit" disabled={saving} className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg disabled:opacity-60">
           {saving ? '⏳ Zapisuję...' : initial ? '✓ Zapisz zmiany' : '＋ Dodaj klienta'}
         </button>

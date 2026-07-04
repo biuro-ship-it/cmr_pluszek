@@ -87,10 +87,15 @@ export default function SuppliersPanel() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Usunąć dostawcę?')) return;
+    const name = suppliers.find(s => s.id === id)?.companyName ?? '';
+    if (!window.confirm(`Czy na pewno usunąć dostawcę "${name}"? Tej operacji nie można cofnąć.`)) return;
     try {
       await deleteSupplier(id);
       setSuppliers(prev => prev.filter(s => s.id !== id));
+      if (editingSupplier?.id === id) {
+        setShowForm(false);
+        setEditingSupplier(null);
+      }
     } catch {
       alert('Błąd usuwania dostawcy');
     }
@@ -238,9 +243,16 @@ export default function SuppliersPanel() {
                   ))}
                 </div>
               </div>
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-2.5 rounded-xl min-w-[200px] transition-colors">
-                Zapisz dostawcę
-              </button>
+              <div className="flex items-center gap-3">
+                {editingSupplier && (
+                  <button type="button" onClick={() => handleDelete(editingSupplier.id)} className="bg-red-50 text-red-600 hover:bg-red-100 font-bold px-6 py-2.5 rounded-xl transition-colors">
+                    🗑 Usuń dostawcę
+                  </button>
+                )}
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-2.5 rounded-xl min-w-[200px] transition-colors">
+                  Zapisz dostawcę
+                </button>
+              </div>
             </div>
           </form>
         </div>

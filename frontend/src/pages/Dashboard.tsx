@@ -297,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
               <div className="text-center text-slate-500 py-16 font-bold animate-pulse">Ładowanie danych z bazy...</div>
             ) : showForm ? (
               <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <ClientForm onSubmit={handleSubmit} onCancel={() => setShowForm(false)} initial={editClient} />
+                <ClientForm onSubmit={handleSubmit} onCancel={() => setShowForm(false)} initial={editClient} onDelete={async (id) => { await removeClient(id); setShowForm(false); setEditClient(null); }} />
               </div>
             ) : viewClient ? (
               <ClientCard
