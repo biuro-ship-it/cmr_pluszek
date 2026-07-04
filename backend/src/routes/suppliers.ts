@@ -40,17 +40,17 @@ const SupplierSchema = z.object({
     street: z.string().default(''),
     zipCode: z.string().default(''),
     city: z.string().default(''),
-  }).default({}),
+  }).default({ street: '', zipCode: '', city: '' }),
   contactNames: z.object({
     company: z.string().default(''),
     sales: z.string().default(''),
     owner: z.string().default(''),
-  }).default({}),
+  }).default({ company: '', sales: '', owner: '' }),
   agreements: z.object({
     discount: z.string().default(''),
     paymentTerm: z.string().default(''),
     deliveryFreq: z.string().default(''),
-  }).default({}),
+  }).default({ discount: '', paymentTerm: '', deliveryFreq: '' }),
 });
 
 const InteractionSchema = z.object({

@@ -37,6 +37,36 @@ const getProvinceFromZip = (zip: string): string => {
   return '';
 };
 
+// ─── Rozbija adres z Białej listy MF ("ULICA 74, 03-301 WARSZAWA") na pola ───
+const parseNipAddress = (raw: string): Address => {
+  const empty: Address = { province: '', zipCode: '', city: '', street: '', number: '' };
+  if (!raw) return empty;
+
+  const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+  let zipCode = '', city = '';
+  const cityPart = parts.length > 1 ? parts[parts.length - 1] : '';
+  const zipMatch = cityPart.match(/(\d{2}-\d{3})\s+(.+)/);
+  if (zipMatch) {
+    zipCode = zipMatch[1];
+    city = zipMatch[2].trim();
+  } else if (parts.length === 1) {
+    const m = raw.match(/(\d{2}-\d{3})\s+([^\d,]+)/);
+    if (m) { zipCode = m[1]; city = m[2].trim(); }
+  }
+
+  const streetPart = parts.length > 1
+    ? parts.slice(0, parts.length - 1).join(', ')
+    : raw.replace(/\d{2}-\d{3}.*/, '').trim();
+  let street = streetPart, number = '';
+  const numMatch = streetPart.match(/^(.*?)[\s]+(\d+[A-Za-z]?(?:\/\d+[A-Za-z]?)?)\s*$/);
+  if (numMatch) {
+    street = numMatch[1].trim();
+    number = numMatch[2].trim();
+  }
+  const province = zipCode ? getProvinceFromZip(zipCode.replace('-', '')) : '';
+  return { province, zipCode, city, street, number };
+};
+
 // ─── Dostępne kolory relacji ───
 const RELATION_COLORS = [
   { id: 'slate',   bg: 'bg-slate-200', border: 'border-slate-400', label: 'Neutralny / Nowy', emoji: '🏢' },
@@ -151,11 +181,21 @@ const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel }) 
       const subject = data?.result?.subject;
       if (!subject) throw new Error('Firma nie znaleziona');
 
+      const rawAddr = subject.workingAddress || subject.residenceAddress || '';
+      const parsed = parseNipAddress(rawAddr);
       setFormData(prev => ({
         ...prev,
         companyName: subject.name || prev.companyName,
+        address: {
+          ...prev.address,
+          street: parsed.street || prev.address.street,
+          number: parsed.number || prev.address.number,
+          city: parsed.city || prev.address.city,
+          zipCode: parsed.zipCode || prev.address.zipCode,
+          province: parsed.province || prev.address.province,
+        },
       }));
-      setNipSuccess(`✓ Znaleziono: ${subject.name}`);
+      setNipSuccess(`✓ Znaleziono: ${subject.name}${rawAddr ? ` • ${rawAddr}` : ''}`);
     } catch {
       setNipError('Nie znaleziono firmy w rejestrze VAT lub firma zwolniona z VAT');
     } finally {
@@ -259,6 +299,31 @@ const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel }) 
         <section>
           <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Adres siedziby</h3>
           <AddressForm value={formData.address} onChange={addr => setFormData(prev => ({ ...prev, address: addr }))} />
+        </section>
+
+        <section>
+          <label className="flex items-center gap-3 cursor-pointer select-none mb-4">
+            <input
+              type="checkbox"
+              checked={showShipping}
+              onChange={e => {
+                const on = e.target.checked;
+                setShowShipping(on);
+                setFormData(prev => ({
+                  ...prev,
+                  shippingAddress: on ? (prev.shippingAddress || emptyAddress()) : undefined,
+                }));
+              }}
+              className="w-5 h-5 rounded accent-blue-600"
+            />
+            <span className="text-sm font-black text-slate-400 uppercase tracking-widest">📦 Inny adres wysyłki</span>
+          </label>
+          {showShipping && (
+            <AddressForm
+              value={formData.shippingAddress || emptyAddress()}
+              onChange={addr => setFormData(prev => ({ ...prev, shippingAddress: addr }))}
+            />
+          )}
         </section>
 
       </div>
