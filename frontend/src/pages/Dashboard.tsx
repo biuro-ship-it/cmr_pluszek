@@ -37,6 +37,7 @@ const NAV_TABS: { id: ActiveTab; label: string; short: string; icon: string }[] 
 const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
   const { clients, loading, error, fetchClients, createClient, updateClient, removeClient } = useClients();
   const [activeTab, setActiveTab] = useState<ActiveTab>('clients');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editClient, setEditClient] = useState<Client | null>(null);
   const [viewClient, setViewClient] = useState<Client | null>(null);
@@ -122,7 +123,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
     setActiveTab(tab);
     setShowForm(false);
     setViewClient(null);
+    setMobileMenuOpen(false);
   };
+
+  const activeMeta = NAV_TABS.find(t => t.id === activeTab) ?? NAV_TABS[0];
 
   const isOverdue = (dateStr: string) => dateStr < new Date().toISOString().split('T')[0];
 
@@ -137,8 +141,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
 
       {/* ── NAWIGACJA ─────────────────────────────────────────────────────── */}
-      <nav className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-4">
+      <nav className="relative bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex justify-between items-center sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-2.5 shrink-0">
             <img
               src="/icon-192.png"
@@ -150,7 +154,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
             </h1>
           </div>
 
-          <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-1">
+          {/* DESKTOP: poziomy pasek zakładek */}
+          <div className="hidden md:flex items-center gap-0.5 bg-slate-100 rounded-xl p-1">
             {NAV_TABS.map(tab => (
               <button
                 key={tab.id}
@@ -162,7 +167,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                 }`}
               >
                 <span>{tab.icon}</span>
-                <span className="inline md:hidden text-xs">{tab.short}</span>
                 <span className="hidden md:inline">{tab.label}</span>
                 {tab.id === 'clients' && tasks.length > 0 && (
                   <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
@@ -172,17 +176,76 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
               </button>
             ))}
           </div>
+
+          {/* MOBILE: aktualna zakładka */}
+          <div className="flex md:hidden items-center gap-2 min-w-0">
+            <span className="text-lg">{activeMeta.icon}</span>
+            <span className="font-bold text-slate-800 truncate">{activeMeta.label}</span>
+            {activeTab !== 'clients' && tasks.length > 0 && (
+              <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+                {tasks.length}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-sm text-slate-500 hidden lg:block">{user?.email}</span>
           <button
             onClick={onSignOut}
-            className="text-sm font-medium text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
+            className="text-sm font-medium text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors hidden md:block"
           >
             Wyloguj
           </button>
+
+          {/* MOBILE: hamburger */}
+          <button
+            type="button"
+            aria-label="Menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(o => !o)}
+            className="md:hidden flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors text-xl"
+          >
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
         </div>
+
+        {/* MOBILE: rozwijane menu zakładek */}
+        {mobileMenuOpen && (
+          <>
+            <div className="md:hidden fixed inset-0 z-10" onClick={() => setMobileMenuOpen(false)} />
+            <div className="md:hidden absolute top-full left-0 right-0 z-20 bg-white border-b border-slate-200 shadow-lg px-3 py-3 animate-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-1 gap-1 max-h-[70vh] overflow-y-auto">
+                {NAV_TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => switchTab(tab.id)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                      activeTab === tab.id
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="text-lg">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    {tab.id === 'clients' && tasks.length > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+                        {tasks.length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                <button
+                  onClick={onSignOut}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors mt-1 border-t border-slate-100 pt-3"
+                >
+                  <span className="text-lg">🚪</span>
+                  <span>Wyloguj</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </nav>
 
       {/* ── GŁÓWNA TREŚĆ ─────────────────────────────────────────────────── */}
