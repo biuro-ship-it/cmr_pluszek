@@ -587,7 +587,7 @@ export interface SupplierFile {
 export interface SupplierMaterial {
   id: string;
   name: string;
-  unit: 'szt' | 'm²' | 'ark.' | 'kpl';
+  unit: 'szt' | 'kpl' | 'ark.' | 'm²' | 'mb' | 'm' | 'kg' | 'g' | 'l' | 'ml';
   price: number; // cena netto za jednostkę
 }
 
@@ -671,4 +671,74 @@ export const updateSupplierInteraction = async (supplierId: string, interactionI
   });
   if (!response.ok) throw new Error('Nie udało się zaktualizować notatki');
   return response.json();
+};
+
+// ─── KALKULACJE ──────────────────────────────────────────────────────────────
+
+export interface CalcComponent {
+  id: string;
+  supplierId?: string;
+  supplierName?: string;
+  materialId?: string;
+  materialName: string;
+  unitPrice: number;
+  priceUnit: string;
+  consumption: number;
+  consumptionUnit: string;
+  included: boolean;
+}
+
+export interface TransportBracket {
+  id: string;
+  maxQty: number;
+  cost: number;
+}
+
+export interface Calculation {
+  id?: string;
+  name: string;
+  components: CalcComponent[];
+  margin1: number;
+  margin2: number;
+  transportBrackets: TransportBracket[];
+  productionQty: number;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CalculationFormData = Omit<Calculation, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>;
+
+const CALCULATIONS_URL = `${API_URL}/api/calculations`;
+
+export const getCalculations = async (): Promise<Calculation[]> => {
+  const headers = await getHeaders();
+  const response = await fetch(CALCULATIONS_URL, { headers });
+  if (!response.ok) throw new Error('Nie udało się pobrać kalkulacji');
+  return response.json();
+};
+
+export const createCalculation = async (data: CalculationFormData): Promise<Calculation> => {
+  const headers = await getHeaders();
+  const response = await fetch(CALCULATIONS_URL, {
+    method: 'POST', headers, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Nie udało się zapisać kalkulacji');
+  return response.json();
+};
+
+export const updateCalculation = async (id: string, data: CalculationFormData): Promise<Calculation> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${CALCULATIONS_URL}/${id}`, {
+    method: 'PUT', headers, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Nie udało się zaktualizować kalkulacji');
+  return response.json();
+};
+
+export const deleteCalculation = async (id: string): Promise<void> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${CALCULATIONS_URL}/${id}`, { method: 'DELETE', headers });
+  if (!response.ok) throw new Error('Nie udało się usunąć kalkulacji');
 };

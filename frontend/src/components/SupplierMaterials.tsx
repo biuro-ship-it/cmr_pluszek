@@ -6,7 +6,7 @@ interface SupplierMaterialsProps {
   onSupplierUpdated: (s: Supplier) => void;
 }
 
-const UNITS: SupplierMaterial['unit'][] = ['szt', 'm²', 'ark.', 'kpl'];
+const UNITS: SupplierMaterial['unit'][] = ['szt', 'kpl', 'ark.', 'm²', 'mb', 'm', 'kg', 'g', 'l', 'ml'];
 
 // Akceptuje przecinek jako separator dziesiętny (polski format).
 const parsePrice = (v: string): number => {

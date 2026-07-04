@@ -122,6 +122,39 @@ export interface Supplier {
   agreements?: SupplierAgreements;
 }
 
+export interface CalcComponent {
+  id: string;
+  supplierId?: string;
+  supplierName?: string;
+  materialId?: string;
+  materialName: string;
+  unitPrice: number;
+  priceUnit: string;
+  consumption: number;
+  consumptionUnit: string;
+  included: boolean;
+}
+
+export interface TransportBracket {
+  id: string;
+  maxQty: number;
+  cost: number;
+}
+
+export interface Calculation {
+  id?: string;
+  name: string;
+  components: CalcComponent[];
+  margin1: number;
+  margin2: number;
+  transportBrackets: TransportBracket[];
+  productionQty: number;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PromotionProduct {
   id: string;
   name: string;

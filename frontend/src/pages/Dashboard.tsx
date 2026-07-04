@@ -11,10 +11,11 @@ import FoamStockPanel from '../FoamStockPanel';
 import ArchivePanel from '../components/ArchivePanel';
 import EmailTemplatesPanel from '../components/EmailTemplatesPanel';
 import SuppliersPanel from '../components/SuppliersPanel';
+import CalculationsPanel from '../components/CalculationsPanel';
 import { Client, ClientFormData, FollowUp, getFollowUpSummary, updateFollowUpStatus } from '../services/api';
 import { User } from 'firebase/auth';
 
-type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes' | 'foam' | 'mail' | 'suppliers' | 'archive';
+type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes' | 'foam' | 'mail' | 'suppliers' | 'calculations' | 'archive';
 
 interface DashboardProps {
   user: User;
@@ -29,6 +30,7 @@ const NAV_TABS: { id: ActiveTab; label: string; short: string; icon: string }[] 
   { id: 'foam',       label: 'Pianki',    short: 'Pianki',   icon: '🎨' }, // <--- NOWE
   { id: 'mail',       label: 'Maile',     short: 'Maile',    icon: '✉️' },
   { id: 'suppliers',  label: 'Dostawcy',  short: 'Dostaw.',  icon: '🚚' },
+  { id: 'calculations', label: 'Kalkulacje', short: 'Kalk.', icon: '🧮' },
   { id: 'archive',    label: 'Archiwum',  short: 'Archiw.',  icon: '💾' },
 ];
 
@@ -340,6 +342,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
         {activeTab === 'suppliers' && (
           <div className="animate-in fade-in duration-300">
             <SuppliersPanel />
+          </div>
+        )}
+
+        {activeTab === 'calculations' && (
+          <div className="animate-in fade-in duration-300">
+            <CalculationsPanel />
           </div>
         )}
         {activeTab === 'archive' && (

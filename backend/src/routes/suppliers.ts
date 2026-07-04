@@ -19,7 +19,7 @@ const FileSchema = z.object({
 const MaterialSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
-  unit: z.enum(['szt', 'm²', 'ark.', 'kpl']).default('szt'),
+  unit: z.enum(['szt', 'kpl', 'ark.', 'm²', 'mb', 'm', 'kg', 'g', 'l', 'ml']).default('szt'),
   price: z.number().nonnegative().default(0),
 });
 
