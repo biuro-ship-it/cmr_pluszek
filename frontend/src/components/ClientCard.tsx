@@ -278,6 +278,30 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) =>
       const { invoices } = await fakturowniaLookup(nip);
       setFkInvoices(invoices);
       setFkSyncedAt(new Date().toISOString());
+
+      // Dopisz nowe faktury do Historii Kontaktów (dedup po numerze faktury).
+      const existingNumbers = new Set(
+        interactions
+          .map(i => i.notes?.match(/Faktura\s+(.+?):/)?.[1]?.trim())
+          .filter((x): x is string => Boolean(x))
+      );
+      const newInvoices = invoices.filter(inv => inv.number && !existingNumbers.has(inv.number));
+      if (newInvoices.length > 0) {
+        for (const inv of newInvoices) {
+          const contactDate = /^\d{4}-\d{2}-\d{2}$/.test(inv.issueDate)
+            ? inv.issueDate
+            : new Date().toISOString().split('T')[0];
+          await createClientInteraction(client.id, {
+            contactDate,
+            channel: 'inne',
+            notes: `🧾 Faktura ${inv.number}: ${zlFmt(inv.priceNet)} zł netto`,
+            tradeNotes: '',
+            products: [],
+          });
+        }
+        const refreshed = await getClientInteractions(client.id);
+        setInteractions(refreshed);
+      }
     } catch (e) {
       setFkError(e instanceof Error ? e.message : 'Błąd synchronizacji z Fakturownią');
     } finally {
