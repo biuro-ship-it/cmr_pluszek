@@ -3,12 +3,14 @@
 //   FAKTUROWNIA_DOMAIN=pluszek        (subdomena: pluszek.fakturownia.pl)
 //   FAKTUROWNIA_TOKEN=xxxxxxxxxxxxxxx (Ustawienia → Konto → Integracja → Kod API)
 
-const DOMAIN = process.env.FAKTUROWNIA_DOMAIN || '';
-const TOKEN = process.env.FAKTUROWNIA_TOKEN || '';
+// Czytamy env leniwie (w funkcjach), bo dotenv.config() w index.ts wykonuje się
+// PO zaimportowaniu tego modułu — odczyt na górze złapałby puste wartości.
+const getDomain = (): string => process.env.FAKTUROWNIA_DOMAIN || '';
+const getToken = (): string => process.env.FAKTUROWNIA_TOKEN || '';
 
-export const isFakturowniaConfigured = (): boolean => Boolean(DOMAIN && TOKEN);
+export const isFakturowniaConfigured = (): boolean => Boolean(getDomain() && getToken());
 
-const baseUrl = (): string => `https://${DOMAIN}.fakturownia.pl`;
+const baseUrl = (): string => `https://${getDomain()}.fakturownia.pl`;
 
 export interface FakturowniaClient {
   id: number;
@@ -44,7 +46,7 @@ const toNumber = (v: unknown): number => {
 /** Znajduje klienta w Fakturowni po NIP (tax_no). Zwraca pierwszego pasującego lub null. */
 export const getClientByNip = async (nip: string): Promise<FakturowniaClient | null> => {
   const nipClean = nip.replace(/[-\s]/g, '');
-  const url = `${baseUrl()}/clients.json?tax_no=${encodeURIComponent(nipClean)}&api_token=${TOKEN}`;
+  const url = `${baseUrl()}/clients.json?tax_no=${encodeURIComponent(nipClean)}&api_token=${getToken()}`;
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Fakturownia clients: ${res.status}`);
   const arr = (await res.json()) as any[];
@@ -69,7 +71,7 @@ export const getInvoicesByClientId = async (clientId: number): Promise<Fakturown
   const all: FakturowniaInvoice[] = [];
   const MAX_PAGES = 5;
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `${baseUrl()}/invoices.json?client_id=${clientId}&page=${page}&per_page=100&api_token=${TOKEN}`;
+    const url = `${baseUrl()}/invoices.json?client_id=${clientId}&page=${page}&per_page=100&api_token=${getToken()}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`Fakturownia invoices: ${res.status}`);
     const arr = (await res.json()) as any[];
@@ -97,7 +99,7 @@ export const getInvoicesByClientId = async (clientId: number): Promise<Fakturown
 
 /** Pobiera PDF faktury jako bufor (token po stronie serwera). */
 export const getInvoicePdf = async (invoiceId: number): Promise<Buffer> => {
-  const url = `${baseUrl()}/invoices/${invoiceId}.pdf?api_token=${TOKEN}`;
+  const url = `${baseUrl()}/invoices/${invoiceId}.pdf?api_token=${getToken()}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Fakturownia PDF: ${res.status}`);
   const ab = await res.arrayBuffer();
