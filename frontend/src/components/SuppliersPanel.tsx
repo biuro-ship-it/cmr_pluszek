@@ -279,7 +279,6 @@ export default function SuppliersPanel() {
                   </div>
                   <div className="flex gap-2 mt-auto border-t border-slate-100 pt-4">
                     <button type="button" onClick={() => setViewSupplier(s)} className="flex-1 bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold py-2 rounded-lg transition-colors">Otwórz kartę</button>
-                    <button type="button" onClick={() => handleDelete(s.id)} className="px-3 text-rose-500 hover:bg-rose-50 rounded-lg text-xs font-bold bg-slate-100">Usuń</button>
                   </div>
                 </div>
               ))}
