@@ -1,0 +1,276 @@
+import { useState } from 'react';
+import { Supplier, SupplierMaterial, updateSupplier } from '../services/api';
+
+interface SupplierMaterialsProps {
+  supplier: Supplier;
+  onSupplierUpdated: (s: Supplier) => void;
+}
+
+const UNITS: SupplierMaterial['unit'][] = ['szt', 'm²', 'ark.', 'kpl'];
+
+// Akceptuje przecinek jako separator dziesiętny (polski format).
+const parsePrice = (v: string): number => {
+  const n = parseFloat(v.replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+const zl = (n: number) =>
+  new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+const todayPl = () => {
+  const d = new Date();
+  const p = (x: number) => String(x).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
+};
+
+type Draft = { name: string; unit: SupplierMaterial['unit']; price: string };
+const emptyDraft: Draft = { name: '', unit: 'szt', price: '' };
+
+const inputCls = 'w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white text-sm';
+
+export default function SupplierMaterials({ supplier, onSupplierUpdated }: SupplierMaterialsProps) {
+  const materials: SupplierMaterial[] = supplier.materials ?? [];
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Katalog: nowy surowiec + edycja istniejącego.
+  const [newDraft, setNewDraft] = useState<Draft>(emptyDraft);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Draft>(emptyDraft);
+
+  // Zamówienie: ilości per surowiec + uwagi.
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [orderNotes, setOrderNotes] = useState('');
+
+  // Zapis katalogu surowców przez istniejące PUT /api/suppliers/:id (wzorzec files[]).
+  const persist = async (next: SupplierMaterial[]) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateSupplier(supplier.id, { ...supplier, materials: next });
+      onSupplierUpdated(updated);
+    } catch {
+      setError('Nie udało się zapisać surowców.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAdd = async () => {
+    const name = newDraft.name.trim();
+    if (!name) return;
+    const material: SupplierMaterial = {
+      id: crypto.randomUUID(),
+      name,
+      unit: newDraft.unit,
+      price: parsePrice(newDraft.price),
+    };
+    await persist([...materials, material]);
+    setNewDraft(emptyDraft);
+  };
+
+  const startEdit = (m: SupplierMaterial) => {
+    setEditingId(m.id);
+    setEditDraft({ name: m.name, unit: m.unit, price: String(m.price) });
+  };
+
+  const handleEditSave = async () => {
+    if (!editingId) return;
+    const name = editDraft.name.trim();
+    if (!name) return;
+    const next = materials.map(m =>
+      m.id === editingId ? { ...m, name, unit: editDraft.unit, price: parsePrice(editDraft.price) } : m,
+    );
+    await persist(next);
+    setEditingId(null);
+    setEditDraft(emptyDraft);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Usunąć ten surowiec z katalogu dostawcy?')) return;
+    await persist(materials.filter(m => m.id !== id));
+    setQuantities(prev => {
+      const { [id]: _removed, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const setQty = (id: string, value: string) => {
+    const n = Math.max(0, Math.floor(Number(value) || 0));
+    setQuantities(prev => ({ ...prev, [id]: n }));
+  };
+
+  const selected = materials.filter(m => (quantities[m.id] ?? 0) > 0);
+  const orderTotal = selected.reduce((sum, m) => sum + (quantities[m.id] ?? 0) * m.price, 0);
+
+  const handleClear = () => {
+    setQuantities({});
+    setOrderNotes('');
+  };
+
+  // Mail NIE zawiera cen — tylko nazwy, ilości i jednostki.
+  const handleSendOrder = () => {
+    if (!supplier.email) {
+      alert('Ten dostawca nie ma zapisanego adresu e-mail.');
+      return;
+    }
+    if (selected.length === 0) {
+      alert('Wpisz ilość przy co najmniej jednym surowcu.');
+      return;
+    }
+    const lines = selected.map(m => `- ${m.name}: ${quantities[m.id]} ${m.unit}`);
+    const notesPart = orderNotes.trim() ? `\n\nUwagi: ${orderNotes.trim()}` : '';
+    const signature =
+      `Pozdrawiam\n\n` +
+      `Krzysztof Godek\n` +
+      `Pluszek sp. z o.o. ul.Monopolowa 11 , 33-100 Tarnów\n` +
+      `NIP 993-068-10-97   tel. 500 601 601`;
+    const body =
+      `Dzień dobry,\n\n` +
+      `proszę o realizację poniższego zamówienia:\n\n` +
+      `${lines.join('\n')}` +
+      `${notesPart}\n\n` +
+      signature;
+    const subject = `Zamówienie — Pluszek (${todayPl()})`;
+    window.location.href =
+      `mailto:${supplier.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  return (
+    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">📦 Surowce i zamówienia</h3>
+        {saving && <span className="text-xs text-slate-400 italic">Zapisuję...</span>}
+      </div>
+
+      {error && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-lg p-3 mb-4">⚠️ {error}</div>
+      )}
+
+      {/* KATALOG SUROWCÓW + WYBÓR ILOŚCI */}
+      <div className="space-y-2 mb-4">
+        {materials.length === 0 ? (
+          <p className="text-xs text-slate-400 text-center py-4 italic border border-dashed border-slate-300 rounded-xl">
+            Brak surowców w katalogu. Dodaj pierwszy poniżej.
+          </p>
+        ) : (
+          materials.map(m => {
+            const qty = quantities[m.id] ?? 0;
+            const isEditing = editingId === m.id;
+            return (
+              <div
+                key={m.id}
+                className={`rounded-xl border p-3 transition-colors ${qty > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}
+              >
+                {isEditing ? (
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                    <input
+                      autoFocus
+                      value={editDraft.name}
+                      onChange={e => setEditDraft({ ...editDraft, name: e.target.value })}
+                      placeholder="Nazwa surowca"
+                      className={`flex-1 ${inputCls}`}
+                    />
+                    <select
+                      value={editDraft.unit}
+                      onChange={e => setEditDraft({ ...editDraft, unit: e.target.value as SupplierMaterial['unit'] })}
+                      className="border border-slate-200 rounded-xl px-2 py-2 outline-none focus:border-blue-500 bg-white text-sm"
+                    >
+                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <input
+                      value={editDraft.price}
+                      onChange={e => setEditDraft({ ...editDraft, price: e.target.value })}
+                      inputMode="decimal"
+                      placeholder="Cena netto"
+                      className="w-28 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={handleEditSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors disabled:opacity-60">Zapisz</button>
+                      <button type="button" onClick={() => { setEditingId(null); setEditDraft(emptyDraft); }} className="border border-slate-200 text-slate-600 font-semibold px-4 py-2 rounded-xl text-xs hover:bg-slate-100">Anuluj</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex-1 min-w-[10rem]">
+                      <span className="font-bold text-sm text-slate-800">{m.name}</span>
+                      <span className="text-xs text-slate-400 ml-2">{zl(m.price)} zł netto / {m.unit}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold text-slate-500">Ilość:</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={qty || ''}
+                        onChange={e => setQty(m.id, e.target.value)}
+                        placeholder="0"
+                        className="w-20 border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:border-blue-500 bg-white text-sm"
+                      />
+                      <span className="text-xs text-slate-400 w-10">{m.unit}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => startEdit(m)} className="text-xs font-bold text-slate-600 hover:underline">✎ Edytuj</button>
+                      <button type="button" onClick={() => handleDelete(m.id)} className="text-xs font-bold text-rose-500 hover:underline">Usuń</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* DODAWANIE NOWEGO SUROWCA */}
+      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-white border border-slate-200 rounded-xl p-3 mb-5">
+        <input
+          value={newDraft.name}
+          onChange={e => setNewDraft({ ...newDraft, name: e.target.value })}
+          placeholder="Nazwa nowego surowca"
+          className={`flex-1 ${inputCls}`}
+        />
+        <select
+          value={newDraft.unit}
+          onChange={e => setNewDraft({ ...newDraft, unit: e.target.value as SupplierMaterial['unit'] })}
+          className="border border-slate-200 rounded-xl px-2 py-2 outline-none focus:border-blue-500 bg-white text-sm"
+        >
+          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <input
+          value={newDraft.price}
+          onChange={e => setNewDraft({ ...newDraft, price: e.target.value })}
+          inputMode="decimal"
+          placeholder="Cena netto / jedn."
+          className="w-36 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white text-sm"
+        />
+        <button type="button" onClick={handleAdd} disabled={saving || !newDraft.name.trim()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition-colors disabled:opacity-60 whitespace-nowrap">
+          ＋ Dodaj surowiec
+        </button>
+      </div>
+
+      {/* ZAMÓWIENIE */}
+      <div className="border-t border-slate-200 pt-4">
+        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Uwagi do zamówienia (opcjonalne)</label>
+        <textarea
+          rows={2}
+          value={orderNotes}
+          onChange={e => setOrderNotes(e.target.value)}
+          placeholder="Np. termin dostawy, sposób pakowania..."
+          className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500 bg-white text-sm resize-none mb-3"
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">
+            Wartość wybranych pozycji:{' '}
+            <span className="font-black text-slate-800">{zl(orderTotal)} zł netto</span>
+            <span className="text-xs text-slate-400 ml-1">(podgląd — nie trafia do maila)</span>
+          </p>
+          <div className="flex gap-2">
+            <button type="button" onClick={handleClear} className="border border-slate-200 text-slate-600 font-semibold px-4 py-2 rounded-xl text-sm hover:bg-slate-100">Wyczyść</button>
+            <button type="button" onClick={handleSendOrder} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition-colors">✉️ Wyślij zamówienie mailem</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

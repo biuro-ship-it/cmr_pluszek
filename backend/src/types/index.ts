@@ -67,6 +67,61 @@ export interface FollowUp {
   completedAt?: string;
 }
 
+export interface SupplierFile {
+  id: string;
+  name: string;
+  url: string;
+  size?: string;
+  uploadedAt: string;
+}
+
+export interface SupplierMaterial {
+  id: string;
+  name: string;
+  unit: 'szt' | 'm2' | 'ark.' | 'kpl';
+  price: number; // cena netto za jednostke
+}
+
+export interface SupplierAddress {
+  street: string;
+  zipCode: string;
+  city: string;
+}
+
+export interface SupplierContactNames {
+  company: string;
+  sales: string;
+  owner: string;
+}
+
+export interface SupplierAgreements {
+  discount: string;
+  paymentTerm: string;
+  deliveryFreq: string;
+}
+
+export interface Supplier {
+  id?: string;
+  companyName: string;
+  category: string;
+  email: string;
+  phoneCompany: string;
+  phoneSales: string;
+  phoneOwner: string;
+  whatsapp?: string;
+  messenger?: string;
+  notes: string;
+  relationshipColor: string;
+  files: SupplierFile[];
+  materials?: SupplierMaterial[];
+  lastContactAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  address?: SupplierAddress;
+  contactNames?: SupplierContactNames;
+  agreements?: SupplierAgreements;
+}
+
 export interface PromotionProduct {
   id: string;
   name: string;

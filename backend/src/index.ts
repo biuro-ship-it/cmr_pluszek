@@ -13,6 +13,7 @@ import noteRoutes from './routes/notes';
 import foamStockRoutes from './routes/foamStock';
 import archiveRoutes from './routes/archive';
 import emailTemplateRoutes from './routes/emailTemplates';
+import supplierRoutes from './routes/suppliers';
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -81,6 +82,7 @@ app.use('/api/notes', noteRoutes);
 app.use('/api/foam-stock', foamStockRoutes);
 app.use('/api/archive', archiveRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
+app.use('/api/suppliers', supplierRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
