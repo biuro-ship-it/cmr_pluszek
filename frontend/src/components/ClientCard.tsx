@@ -7,6 +7,7 @@ import {
   getProductsList, createFollowUp, fakturowniaLookup, openFakturowniaPdf
 } from '../services/api';
 import EmailSendModal from './EmailSendModal';
+import NipBadge from './NipBadge';
 
 type ExtendedClient = Client & { relationshipColor?: string };
 
@@ -366,6 +367,7 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) =>
             <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${client.type === 'hurt' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
               {client.type}
             </span>
+            <NipBadge nip={client.nip} />
           </div>
           <p className="text-slate-600 font-medium">Osoba kontaktowa: <span className="text-slate-900 font-bold">{client.contactPerson || 'Brak'}</span></p>
         </div>

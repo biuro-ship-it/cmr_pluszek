@@ -139,10 +139,59 @@ const resolveCategoryId = async (): Promise<number | null> => {
   return cachedCategoryId;
 };
 
+interface CategoryClient { id: number; name: string; nip: string }
+
+// Firmy przypisane do kategorii (paginacja). Kategoria jest na KLIENCIE, nie na fakturze.
+const getClientsInCategory = async (categoryId: number): Promise<CategoryClient[]> => {
+  const out: CategoryClient[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const url = `${baseUrl()}/clients.json?category_id=${categoryId}&page=${page}&per_page=100&api_token=${getToken()}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`Fakturownia clients: ${res.status}`);
+    const arr = (await res.json()) as any[];
+    if (!Array.isArray(arr) || arr.length === 0) break;
+    for (const c of arr) {
+      out.push({ id: Number(c.id), name: String(c.name || '').trim(), nip: String(c.tax_no || '').replace(/[-\s]/g, '') });
+    }
+    if (arr.length < 100) break;
+  }
+  return out;
+};
+
+// Surowe faktury danego klienta za okres (paginacja).
+const fetchClientInvoicesRaw = async (clientId: number, period: string): Promise<any[]> => {
+  const out: any[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const url = `${baseUrl()}/invoices.json?client_id=${clientId}&period=${encodeURIComponent(period)}&page=${page}&per_page=100&api_token=${getToken()}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`Fakturownia invoices: ${res.status}`);
+    const arr = (await res.json()) as any[];
+    if (!Array.isArray(arr) || arr.length === 0) break;
+    out.push(...arr);
+    if (arr.length < 100) break;
+  }
+  return out;
+};
+
+// Uruchamia fn dla elementów z ograniczoną współbieżnością (żeby nie zalać API).
+const mapLimit = async <T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> => {
+  const ret = new Array<R>(items.length);
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const idx = i++;
+      if (idx >= items.length) break;
+      ret[idx] = await fn(items[idx]);
+    }
+  });
+  await Promise.all(workers);
+  return ret;
+};
+
 /**
- * Agreguje faktury z całej Fakturowni za dany okres (period: all/this_year/last_year/…).
- * Obrót liczony NETTO. Grupowanie po firmie (NIP, w razie braku po nazwie nabywcy).
- * Proformy i wyceny pomijane.
+ * Obrót firm z kategorii CRM-Pluszek za dany okres (period: all/this_year/last_year/…).
+ * Kategoria jest przypisana do KLIENTA — pobieramy firmy z kategorii i sumujemy ich faktury.
+ * Obrót NETTO, proformy i wyceny pomijane. Grupowanie po firmie (dane z karty klienta).
  */
 export const getInvoiceStats = async (period: string): Promise<FakturowniaStats> => {
   const categoryId = await resolveCategoryId();
@@ -150,64 +199,43 @@ export const getInvoiceStats = async (period: string): Promise<FakturowniaStats>
     throw new Error(`Nie znaleziono kategorii „${CATEGORY_NAME}" w Fakturowni`);
   }
 
-  const raw: any[] = [];
-  const MAX_PAGES = 100; // do 10 000 faktur — bezpieczny limit
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `${baseUrl()}/invoices.json?period=${encodeURIComponent(period)}&page=${page}&per_page=100&category_id=${categoryId}&api_token=${getToken()}`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) throw new Error(`Fakturownia invoices: ${res.status}`);
-    const arr = (await res.json()) as any[];
-    if (!Array.isArray(arr) || arr.length === 0) break;
-    raw.push(...arr);
-    if (arr.length < 100) break;
-  }
+  const clients = await getClientsInCategory(categoryId);
+  const empty: FakturowniaStats = { period, category: CATEGORY_NAME, totalNet: 0, invoiceCount: 0, companyCount: 0, companies: [], byYear: [] };
+  if (clients.length === 0) return empty;
 
-  const companies = new Map<string, FakturowniaCompanyStat>();
   const years = new Map<string, { net: number; count: number }>();
-  let totalNet = 0;
-  let invoiceCount = 0;
 
-  for (const inv of raw) {
-    if (Number(inv.category_id) !== categoryId) continue; // asekuracja, gdyby API zwróciło szersze
-    if (EXCLUDED_KINDS.has(String(inv.kind || ''))) continue;
-    const net = toNumber(inv.price_net);
-    const nip = String(inv.buyer_tax_no || '').replace(/[-\s]/g, '');
-    const name = String(inv.buyer_name || '').trim();
-    const key = nip || name || `client-${inv.client_id ?? 'brak'}`;
+  const perClient = await mapLimit(clients, 6, async (cl): Promise<FakturowniaCompanyStat> => {
+    const invs = await fetchClientInvoicesRaw(cl.id, period);
+    let net = 0, count = 0, min = Infinity, max = -Infinity;
+    for (const inv of invs) {
+      if (EXCLUDED_KINDS.has(String(inv.kind || ''))) continue;
+      const n = toNumber(inv.price_net);
+      net += n; count += 1;
+      min = Math.min(min, n); max = Math.max(max, n);
+      const y = String(inv.issue_date || '').slice(0, 4) || '—';
+      const yr = years.get(y) ?? { net: 0, count: 0 };
+      yr.net += n; yr.count += 1; years.set(y, yr);
+    }
+    return {
+      key: cl.nip || String(cl.id),
+      name: cl.name || '(brak nazwy)',
+      nip: cl.nip,
+      net, count,
+      avg: count ? net / count : 0,
+      min: min === Infinity ? 0 : min,
+      max: max === -Infinity ? 0 : max,
+    };
+  });
 
-    totalNet += net;
-    invoiceCount += 1;
-
-    const c = companies.get(key) ?? { key, name: name || '(brak nazwy)', nip, net: 0, count: 0, avg: 0, min: Infinity, max: -Infinity };
-    c.net += net;
-    c.count += 1;
-    c.min = Math.min(c.min, net);
-    c.max = Math.max(c.max, net);
-    if ((!c.name || c.name === '(brak nazwy)') && name) c.name = name;
-    if (!c.nip && nip) c.nip = nip;
-    companies.set(key, c);
-
-    const y = String(inv.issue_date || '').slice(0, 4) || '—';
-    const yr = years.get(y) ?? { net: 0, count: 0 };
-    yr.net += net;
-    yr.count += 1;
-    years.set(y, yr);
-  }
-
-  const companiesArr = [...companies.values()]
-    .map(c => ({
-      ...c,
-      avg: c.count ? c.net / c.count : 0,
-      min: c.min === Infinity ? 0 : c.min,
-      max: c.max === -Infinity ? 0 : c.max,
-    }))
-    .sort((a, b) => b.net - a.net);
-
+  const companies = perClient.filter(c => c.count > 0).sort((a, b) => b.net - a.net);
+  const totalNet = companies.reduce((s, c) => s + c.net, 0);
+  const invoiceCount = companies.reduce((s, c) => s + c.count, 0);
   const byYear = [...years.entries()]
     .map(([year, v]) => ({ year, net: v.net, count: v.count }))
     .sort((a, b) => b.year.localeCompare(a.year));
 
-  return { period, category: CATEGORY_NAME, totalNet, invoiceCount, companyCount: companiesArr.length, companies: companiesArr, byYear };
+  return { period, category: CATEGORY_NAME, totalNet, invoiceCount, companyCount: companies.length, companies, byYear };
 };
 
 /** Pobiera PDF faktury jako bufor (token po stronie serwera). */

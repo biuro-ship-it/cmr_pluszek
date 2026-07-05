@@ -11,6 +11,7 @@ import {
   uploadImage,
 } from '../services/api';
 import SupplierMaterials from './SupplierMaterials';
+import NipBadge from './NipBadge';
 
 const colorClasses: Record<string, string> = {
   default: 'bg-white',
@@ -141,6 +142,7 @@ export default function SupplierCard({ supplier, onClose, onSupplierUpdated }: S
           <div className="flex items-center gap-3 mb-1">
             <h2 className="text-3xl font-black text-slate-800">{supplier.companyName}</h2>
             <span className="text-xs font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">{supplier.category}</span>
+            <NipBadge nip={supplier.nip} />
           </div>
           {(supplier.address?.street || supplier.address?.city || supplier.address?.zipCode) ? (
             <p className="text-sm text-slate-500">
