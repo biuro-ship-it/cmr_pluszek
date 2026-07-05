@@ -290,6 +290,7 @@ export interface FakturowniaCompanyStat {
 
 export interface FakturowniaStats {
   period: string;
+  category: string;
   totalNet: number;
   invoiceCount: number;
   companyCount: number;

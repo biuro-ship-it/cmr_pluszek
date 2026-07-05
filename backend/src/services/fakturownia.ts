@@ -110,6 +110,7 @@ export interface FakturowniaCompanyStat {
 
 export interface FakturowniaStats {
   period: string;
+  category: string;
   totalNet: number;
   invoiceCount: number;
   companyCount: number;
@@ -120,16 +121,39 @@ export interface FakturowniaStats {
 // Rodzaje pomijane w obrocie (to nie sprzedaż): proformy i wyceny/szacunki.
 const EXCLUDED_KINDS = new Set(['proforma', 'estimate', 'client_order', 'kp', 'kw']);
 
+// Analizy dotyczą tylko faktur z kategorii przychodu o tej nazwie (dział CRM Pluszek).
+const CATEGORY_NAME = process.env.FAKTUROWNIA_CATEGORY || 'CRM-Pluszek';
+let cachedCategoryId: number | null | undefined; // undefined = jeszcze nie rozwiązane
+
+// Zwraca id kategorii Fakturowni o nazwie CATEGORY_NAME (cache w pamięci), lub null gdy brak.
+const resolveCategoryId = async (): Promise<number | null> => {
+  if (cachedCategoryId !== undefined) return cachedCategoryId;
+  const url = `${baseUrl()}/categories.json?api_token=${getToken()}`;
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`Fakturownia categories: ${res.status}`);
+  const arr = (await res.json()) as any[];
+  const found = Array.isArray(arr)
+    ? arr.find(c => String(c.name || '').trim().toLowerCase() === CATEGORY_NAME.toLowerCase())
+    : null;
+  cachedCategoryId = found ? Number(found.id) : null;
+  return cachedCategoryId;
+};
+
 /**
  * Agreguje faktury z całej Fakturowni za dany okres (period: all/this_year/last_year/…).
  * Obrót liczony NETTO. Grupowanie po firmie (NIP, w razie braku po nazwie nabywcy).
  * Proformy i wyceny pomijane.
  */
 export const getInvoiceStats = async (period: string): Promise<FakturowniaStats> => {
+  const categoryId = await resolveCategoryId();
+  if (categoryId == null) {
+    throw new Error(`Nie znaleziono kategorii „${CATEGORY_NAME}" w Fakturowni`);
+  }
+
   const raw: any[] = [];
   const MAX_PAGES = 100; // do 10 000 faktur — bezpieczny limit
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `${baseUrl()}/invoices.json?period=${encodeURIComponent(period)}&page=${page}&per_page=100&api_token=${getToken()}`;
+    const url = `${baseUrl()}/invoices.json?period=${encodeURIComponent(period)}&page=${page}&per_page=100&category_id=${categoryId}&api_token=${getToken()}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`Fakturownia invoices: ${res.status}`);
     const arr = (await res.json()) as any[];
@@ -144,6 +168,7 @@ export const getInvoiceStats = async (period: string): Promise<FakturowniaStats>
   let invoiceCount = 0;
 
   for (const inv of raw) {
+    if (Number(inv.category_id) !== categoryId) continue; // asekuracja, gdyby API zwróciło szersze
     if (EXCLUDED_KINDS.has(String(inv.kind || ''))) continue;
     const net = toNumber(inv.price_net);
     const nip = String(inv.buyer_tax_no || '').replace(/[-\s]/g, '');
@@ -182,7 +207,7 @@ export const getInvoiceStats = async (period: string): Promise<FakturowniaStats>
     .map(([year, v]) => ({ year, net: v.net, count: v.count }))
     .sort((a, b) => b.year.localeCompare(a.year));
 
-  return { period, totalNet, invoiceCount, companyCount: companiesArr.length, companies: companiesArr, byYear };
+  return { period, category: CATEGORY_NAME, totalNet, invoiceCount, companyCount: companiesArr.length, companies: companiesArr, byYear };
 };
 
 /** Pobiera PDF faktury jako bufor (token po stronie serwera). */

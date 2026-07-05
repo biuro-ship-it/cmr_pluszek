@@ -110,7 +110,10 @@ export default function AnalyticsPanel() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-black text-slate-800">Analizy</h2>
-          <p className="text-sm text-slate-500 mt-1">Obrót firm na podstawie faktur z Fakturowni (netto)</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Obrót firm na podstawie faktur z Fakturowni (netto)
+            {stats?.category && <span className="ml-1">· kategoria <span className="font-bold text-slate-700">{stats.category}</span></span>}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <select value={period} onChange={e => setPeriod(e.target.value)} className={inputCls}>
@@ -173,7 +176,10 @@ export default function AnalyticsPanel() {
               <h3 className="font-bold text-slate-800">Udział firm w obrocie</h3>
             </div>
             {companies.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-10">Brak faktur w wybranym okresie.</p>
+              <p className="text-sm text-slate-400 text-center py-10">
+                Brak faktur w kategorii <span className="font-semibold">{stats.category}</span> w wybranym okresie.
+                <br />Przypisz odpowiednie faktury do tej kategorii w Fakturowni, aby pojawiły się w analizie.
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
