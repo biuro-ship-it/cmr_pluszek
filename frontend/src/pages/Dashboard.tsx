@@ -13,7 +13,10 @@ import EmailTemplatesPanel from '../components/EmailTemplatesPanel';
 import SuppliersPanel from '../components/SuppliersPanel';
 import CalculationsPanel from '../components/CalculationsPanel';
 import AnalyticsPanel from '../components/AnalyticsPanel';
-import { Client, ClientFormData, FollowUp, getFollowUpSummary, updateFollowUpStatus } from '../services/api';
+import { Client, ClientFormData, FollowUp, getFollowUpSummary, updateFollowUpStatus, getFakturowniaStats } from '../services/api';
+
+// Info o fakturach per NIP (do sygnału „wymaga uwagi" na liście klientów).
+export type InvoiceInfo = Record<string, { count: number; lastIssueDate: string; net: number }>;
 import { User } from 'firebase/auth';
 
 type ActiveTab = 'clients' | 'products' | 'addresses' | 'promotions' | 'notes' | 'foam' | 'mail' | 'suppliers' | 'calculations' | 'analytics' | 'archive';
@@ -45,6 +48,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
   const [viewClient, setViewClient] = useState<Client | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<FollowUp[]>([]);
+  const [invoiceInfo, setInvoiceInfo] = useState<InvoiceInfo>({});
+
+  // Raz w tle: pobierz obrót firm z Fakturowni (kategoria CRM-Pluszek) i zbuduj mapę po NIP.
+  useEffect(() => {
+    getFakturowniaStats('all')
+      .then(s => {
+        const map: InvoiceInfo = {};
+        for (const c of s.companies) {
+          if (c.nip) map[c.nip] = { count: c.count, lastIssueDate: c.lastIssueDate, net: c.net };
+        }
+        setInvoiceInfo(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -371,7 +388,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                 onDelete={async (id) => { await removeClient(id); setViewClient(null); loadTasks(); }}
               />
             ) : (
-              <ClientList clients={clients} onEdit={handleEditClick} onDelete={removeClient} onView={handleViewClick} />
+              <ClientList clients={clients} onEdit={handleEditClick} onDelete={removeClient} onView={handleViewClick} invoiceInfo={invoiceInfo} />
             )}
           </>
         )}

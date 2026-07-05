@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Client } from '../services/api';
+import NipBadge from './NipBadge';
 
 type ExtendedClient = Client & { relationshipColor?: string };
+
+type InvoiceInfo = Record<string, { count: number; lastIssueDate: string; net: number }>;
 
 interface ClientListProps {
   clients: ExtendedClient[];
   onEdit: (client: ExtendedClient) => void;
   onDelete?: (id: string) => void;
   onView: (client: ExtendedClient) => void;
+  invoiceInfo?: InvoiceInfo;
 }
+
+// Sygnał „wymaga uwagi": w Fakturowni jest faktura nowsza niż ostatni kontakt w CRM.
+const needsAttention = (client: Client, info?: InvoiceInfo): string => {
+  const nip = (client.nip || '').replace(/[-\s]/g, '');
+  const fk = nip && info ? info[nip] : undefined;
+  if (!fk || fk.count === 0 || !fk.lastIssueDate) return '';
+  const lastContact = (client.lastContactAt || '').slice(0, 10);
+  if (fk.lastIssueDate > lastContact) {
+    return `Faktura z ${fk.lastIssueDate} nowsza niż ostatni kontakt${lastContact ? ` (${lastContact})` : ''} — pobierz z Fakturowni i odnotuj`;
+  }
+  return '';
+};
 
 const PROVINCES = [
   'Dolnośląskie', 'Kujawsko-pomorskie', 'Lubelskie', 'Lubuskie',
@@ -30,7 +46,7 @@ const getCardStyle = (colorId?: string) => {
   }
 };
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo }) => {
   const [search, setSearch] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('');
   const [sortBy, setSortBy] = useState('alpha');
@@ -101,11 +117,22 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView }) => {
             className={`p-5 rounded-2xl border shadow-sm hover:shadow-md transition-shadow group relative flex flex-col h-full ${getCardStyle(client.relationshipColor)}`}
           >
             <div className="flex justify-between items-start mb-4">
-              <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${
-                client.type === 'hurt' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-              }`}>
-                {client.type}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${
+                  client.type === 'hurt' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                }`}>
+                  {client.type}
+                </span>
+                <NipBadge nip={client.nip} size={16} />
+                {(() => {
+                  const reason = needsAttention(client, invoiceInfo);
+                  return reason ? (
+                    <span title={reason} className="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-300 cursor-help">
+                      ⚠️ Uwaga
+                    </span>
+                  ) : null;
+                })()}
+              </div>
               <button onClick={() => onEdit(client)} className="text-sm text-slate-400 hover:text-blue-600 font-semibold transition-colors">✎ Edytuj</button>
             </div>
             

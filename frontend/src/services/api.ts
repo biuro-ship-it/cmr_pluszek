@@ -286,6 +286,7 @@ export interface FakturowniaCompanyStat {
   avg: number;
   min: number;
   max: number;
+  lastIssueDate: string;
 }
 
 export interface FakturowniaStats {

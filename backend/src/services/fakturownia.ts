@@ -106,6 +106,7 @@ export interface FakturowniaCompanyStat {
   avg: number;
   min: number;
   max: number;
+  lastIssueDate: string;
 }
 
 export interface FakturowniaStats {
@@ -207,13 +208,15 @@ export const getInvoiceStats = async (period: string): Promise<FakturowniaStats>
 
   const perClient = await mapLimit(clients, 6, async (cl): Promise<FakturowniaCompanyStat> => {
     const invs = await fetchClientInvoicesRaw(cl.id, period);
-    let net = 0, count = 0, min = Infinity, max = -Infinity;
+    let net = 0, count = 0, min = Infinity, max = -Infinity, lastIssueDate = '';
     for (const inv of invs) {
       if (EXCLUDED_KINDS.has(String(inv.kind || ''))) continue;
       const n = toNumber(inv.price_net);
       net += n; count += 1;
       min = Math.min(min, n); max = Math.max(max, n);
-      const y = String(inv.issue_date || '').slice(0, 4) || '—';
+      const iss = String(inv.issue_date || '');
+      if (iss > lastIssueDate) lastIssueDate = iss;
+      const y = iss.slice(0, 4) || '—';
       const yr = years.get(y) ?? { net: 0, count: 0 };
       yr.net += n; yr.count += 1; years.set(y, yr);
     }
@@ -225,6 +228,7 @@ export const getInvoiceStats = async (period: string): Promise<FakturowniaStats>
       avg: count ? net / count : 0,
       min: min === Infinity ? 0 : min,
       max: max === -Infinity ? 0 : max,
+      lastIssueDate,
     };
   });
 
