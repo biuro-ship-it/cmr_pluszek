@@ -5,10 +5,29 @@ import {
   getClientByNip,
   getInvoicesByClientId,
   getInvoicePdf,
+  getInvoiceStats,
 } from '../services/fakturownia';
 
 const router = Router();
 router.use(verifyToken);
+
+// Analityka obrotu — agregacja faktur z całej Fakturowni po firmach.
+router.get('/stats', async (req: AuthRequest, res: Response) => {
+  if (!isFakturowniaConfigured()) {
+    res.status(503).json({ error: 'Integracja z Fakturownią nie jest skonfigurowana.' });
+    return;
+  }
+  const allowed = new Set(['all', 'this_year', 'last_year', 'this_month', 'last_month']);
+  const q = String(req.query.period || 'all');
+  const period = allowed.has(q) ? q : 'all';
+  try {
+    const stats = await getInvoiceStats(period);
+    res.json(stats);
+  } catch (err) {
+    console.error('Fakturownia stats error:', err);
+    res.status(502).json({ error: 'Błąd pobierania statystyk z Fakturowni.' });
+  }
+});
 
 // Klient + jego faktury po NIP (tylko odczyt z Fakturowni).
 router.get('/lookup/:nip', async (req: AuthRequest, res: Response) => {

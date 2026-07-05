@@ -277,6 +277,35 @@ export const fakturowniaLookup = async (nip: string): Promise<FakturowniaLookup>
   return response.json();
 };
 
+export interface FakturowniaCompanyStat {
+  key: string;
+  name: string;
+  nip: string;
+  net: number;
+  count: number;
+  avg: number;
+  min: number;
+  max: number;
+}
+
+export interface FakturowniaStats {
+  period: string;
+  totalNet: number;
+  invoiceCount: number;
+  companyCount: number;
+  companies: FakturowniaCompanyStat[];
+  byYear: { year: string; net: number; count: number }[];
+}
+
+/** Pobiera analitykę obrotu (agregacja faktur po firmach) za dany okres. */
+export const getFakturowniaStats = async (period: string): Promise<FakturowniaStats> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/fakturownia/stats?period=${encodeURIComponent(period)}`, { headers });
+  if (response.status === 503) throw new Error('Integracja z Fakturownią nie jest skonfigurowana');
+  if (!response.ok) throw new Error('Błąd pobierania statystyk z Fakturowni');
+  return response.json();
+};
+
 /** Otwiera PDF faktury w nowej karcie (token zostaje po stronie backendu). */
 export const openFakturowniaPdf = async (invoiceId: number): Promise<void> => {
   const headers = await getHeaders();
