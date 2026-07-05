@@ -273,7 +273,7 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) =>
 
   const handleFakturowniaSync = async () => {
     const nip = (client.nip || '').replace(/[-\s]/g, '');
-    if (nip.length !== 10) { setFkError('Klient nie ma poprawnego NIP (wymagane 10 cyfr).'); return; }
+    if (nip.length < 5) { setFkError('Klient nie ma poprawnego numeru NIP/VAT.'); return; }
     setFkLoading(true); setFkError('');
     try {
       const { invoices } = await fakturowniaLookup(nip);

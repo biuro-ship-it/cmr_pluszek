@@ -268,9 +268,9 @@ export interface FakturowniaLookup {
 /** Pobiera z Fakturowni dane klienta i jego faktury po NIP. */
 export const fakturowniaLookup = async (nip: string): Promise<FakturowniaLookup> => {
   const nipClean = nip.replace(/[-\s]/g, '');
-  if (!/^\d{10}$/.test(nipClean)) throw new Error('NIP musi mieć 10 cyfr');
+  if (!/^[A-Za-z0-9]{5,20}$/.test(nipClean)) throw new Error('Podaj poprawny numer NIP/VAT');
   const headers = await getHeaders();
-  const response = await fetch(`${API_URL}/api/fakturownia/lookup/${nipClean}`, { headers });
+  const response = await fetch(`${API_URL}/api/fakturownia/lookup/${encodeURIComponent(nipClean)}`, { headers });
   if (response.status === 404) throw new Error('Nie znaleziono klienta o tym NIP w Fakturowni');
   if (response.status === 503) throw new Error('Integracja z Fakturownią nie jest skonfigurowana');
   if (!response.ok) throw new Error('Błąd komunikacji z Fakturownią');

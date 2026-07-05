@@ -12,11 +12,13 @@ interface ClientListProps {
   onDelete?: (id: string) => void;
   onView: (client: ExtendedClient) => void;
   invoiceInfo?: InvoiceInfo;
+  onRefreshInvoices?: () => void;
+  invoiceLoading?: boolean;
 }
 
 // Sygnał „wymaga uwagi": w Fakturowni jest faktura nowsza niż ostatni kontakt w CRM.
 const needsAttention = (client: Client, info?: InvoiceInfo): string => {
-  const nip = (client.nip || '').replace(/[-\s]/g, '');
+  const nip = (client.nip || '').replace(/[-\s]/g, '').toUpperCase();
   const fk = nip && info ? info[nip] : undefined;
   if (!fk || fk.count === 0 || !fk.lastIssueDate) return '';
   const lastContact = (client.lastContactAt || '').slice(0, 10);
@@ -46,7 +48,7 @@ const getCardStyle = (colorId?: string) => {
   }
 };
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo, onRefreshInvoices, invoiceLoading }) => {
   const [search, setSearch] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('');
   const [sortBy, setSortBy] = useState('alpha');
@@ -108,6 +110,17 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
             <option value="type">🏢 Według kategorii</option>
           </select>
         </div>
+        {onRefreshInvoices && (
+          <button
+            type="button"
+            onClick={onRefreshInvoices}
+            disabled={invoiceLoading}
+            title="Odśwież dane faktur z Fakturowni — sygnał wymaga uwagi"
+            className="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold disabled:opacity-60 whitespace-nowrap"
+          >
+            {invoiceLoading ? '⏳ Odświeżam…' : '↻ Odśwież faktury'}
+          </button>
+        )}
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

@@ -49,19 +49,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<FollowUp[]>([]);
   const [invoiceInfo, setInvoiceInfo] = useState<InvoiceInfo>({});
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
-  // Raz w tle: pobierz obrót firm z Fakturowni (kategoria CRM-Pluszek) i zbuduj mapę po NIP.
-  useEffect(() => {
-    getFakturowniaStats('all')
-      .then(s => {
-        const map: InvoiceInfo = {};
-        for (const c of s.companies) {
-          if (c.nip) map[c.nip] = { count: c.count, lastIssueDate: c.lastIssueDate, net: c.net };
-        }
-        setInvoiceInfo(map);
-      })
-      .catch(() => {});
+  // Pobiera obraz faktur firm z Fakturowni (kategoria CRM-Pluszek) i buduje mapę po NIP.
+  const loadInvoiceInfo = useCallback(async () => {
+    setInvoiceLoading(true);
+    try {
+      const s = await getFakturowniaStats('all');
+      const map: InvoiceInfo = {};
+      for (const c of s.companies) {
+        if (c.nip) map[c.nip.toUpperCase()] = { count: c.count, lastIssueDate: c.lastIssueDate, net: c.net };
+      }
+      setInvoiceInfo(map);
+    } catch {
+      // brak konfiguracji / błąd — pomijamy sygnały „wymaga uwagi"
+    } finally {
+      setInvoiceLoading(false);
+    }
   }, []);
+
+  useEffect(() => { loadInvoiceInfo(); }, [loadInvoiceInfo]);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -388,7 +395,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                 onDelete={async (id) => { await removeClient(id); setViewClient(null); loadTasks(); }}
               />
             ) : (
-              <ClientList clients={clients} onEdit={handleEditClick} onDelete={removeClient} onView={handleViewClick} invoiceInfo={invoiceInfo} />
+              <ClientList clients={clients} onEdit={handleEditClick} onDelete={removeClient} onView={handleViewClick} invoiceInfo={invoiceInfo} onRefreshInvoices={loadInvoiceInfo} invoiceLoading={invoiceLoading} />
             )}
           </>
         )}

@@ -35,9 +35,10 @@ router.get('/lookup/:nip', async (req: AuthRequest, res: Response) => {
     res.status(503).json({ error: 'Integracja z Fakturownią nie jest skonfigurowana (brak FAKTUROWNIA_DOMAIN/TOKEN).' });
     return;
   }
+  // Akceptujemy też zagraniczne numery VAT (np. czeskie „CZ…"), nie tylko 10-cyfrowy PL NIP.
   const nipClean = req.params.nip.replace(/[-\s]/g, '');
-  if (!/^\d{10}$/.test(nipClean)) {
-    res.status(400).json({ error: 'Nieprawidłowy NIP (podaj 10 cyfr).' });
+  if (!/^[A-Za-z0-9]{5,20}$/.test(nipClean)) {
+    res.status(400).json({ error: 'Nieprawidłowy numer NIP/VAT.' });
     return;
   }
   try {
