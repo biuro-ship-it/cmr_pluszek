@@ -4,6 +4,52 @@ import { FakturowniaStats, getFakturowniaStats } from '../services/api';
 const zl = (n: number) =>
   new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ' zł';
 
+// Skrócony format do środka wykresu (żeby zmieścić w otworze donuta).
+const zlShort = (n: number): string => {
+  if (n >= 1e6) return (n / 1e6).toFixed(2).replace('.', ',') + ' mln zł';
+  if (n >= 1e3) return Math.round(n / 1e3).toLocaleString('pl-PL') + ' tys. zł';
+  return Math.round(n).toLocaleString('pl-PL') + ' zł';
+};
+
+// Paleta kategoryczna (dataviz, tryb light) — stała kolejność, CVD-bezpieczna.
+const PIE_COLORS = ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948', '#e87ba4', '#eb6834'];
+const REST_COLOR = '#898781'; // „Pozostałe" — neutralna szarość, nie kolejny hue
+
+type PieItem = { label: string; value: number; color: string };
+
+// Donut top-N udziału firm w obrocie (inline SVG, bez bibliotek).
+function DonutChart({ data, total }: { data: PieItem[]; total: number }) {
+  const size = 220, stroke = 34, r = (size - stroke) / 2, cx = size / 2, cy = size / 2;
+  const C = 2 * Math.PI * r;
+  let acc = 0;
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} className="shrink-0" role="img" aria-label="Udział firm w obrocie">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
+      <g transform={`rotate(-90 ${cx} ${cy})`}>
+        {data.map((d, i) => {
+          const frac = total > 0 ? d.value / total : 0;
+          const dash = Math.max(frac * C - 2, 0); // 2px przerwa między wycinkami
+          const el = (
+            <circle
+              key={i}
+              cx={cx} cy={cy} r={r} fill="none"
+              stroke={d.color} strokeWidth={stroke}
+              strokeDasharray={`${dash} ${C - dash}`}
+              strokeDashoffset={-acc * C}
+            >
+              <title>{`${d.label}: ${zl(d.value)} (${(frac * 100).toFixed(1)}%)`}</title>
+            </circle>
+          );
+          acc += frac;
+          return el;
+        })}
+      </g>
+      <text x={cx} y={cy - 4} textAnchor="middle" className="fill-slate-800" style={{ fontSize: 15, fontWeight: 800 }}>{zlShort(total)}</text>
+      <text x={cx} y={cy + 16} textAnchor="middle" className="fill-slate-400" style={{ fontSize: 11 }}>obrót netto</text>
+    </svg>
+  );
+}
+
 const PERIODS: { id: string; label: string }[] = [
   { id: 'all', label: 'Cały czas' },
   { id: 'this_year', label: 'Bieżący rok' },
@@ -47,6 +93,18 @@ export default function AnalyticsPanel() {
 
   const total = stats?.totalNet ?? 0;
 
+  // Dane donuta: top-8 firm wg obrotu + „Pozostałe" (zawsze wg obrotu, niezależnie od sortu tabeli).
+  const pie = useMemo<PieItem[]>(() => {
+    if (!stats) return [];
+    const sorted = [...stats.companies].sort((a, b) => b.net - a.net);
+    const top = sorted.slice(0, 8);
+    const rest = sorted.slice(8);
+    const items: PieItem[] = top.map((c, i) => ({ label: c.name, value: c.net, color: PIE_COLORS[i] }));
+    const restNet = rest.reduce((s, c) => s + c.net, 0);
+    if (restNet > 0) items.push({ label: `Pozostałe (${rest.length})`, value: restNet, color: REST_COLOR });
+    return items;
+  }, [stats]);
+
   return (
     <div className="animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
@@ -85,6 +143,29 @@ export default function AnalyticsPanel() {
               <p className="text-3xl font-black text-slate-800 mt-1">{stats.companyCount}</p>
             </div>
           </div>
+
+          {/* WYKRES KOŁOWY — UDZIAŁ W OBROCIE */}
+          {total > 0 && pie.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 mb-8">
+              <h3 className="font-bold text-slate-800 mb-4">Udział w obrocie — top 8 firm</h3>
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <DonutChart data={pie} total={total} />
+                <ul className="flex-1 w-full space-y-1.5">
+                  {pie.map((d, i) => {
+                    const pct = total > 0 ? (d.value / total) * 100 : 0;
+                    return (
+                      <li key={i} className="flex items-center gap-3 text-sm">
+                        <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: d.color }} />
+                        <span className="flex-1 text-slate-700 truncate" title={d.label}>{d.label}</span>
+                        <span className="font-mono text-slate-500 w-16 text-right">{pct.toFixed(1)}%</span>
+                        <span className="font-mono font-semibold text-slate-800 w-32 text-right whitespace-nowrap">{zl(d.value)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          )}
 
           {/* RANKING FIRM */}
           <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-8">
