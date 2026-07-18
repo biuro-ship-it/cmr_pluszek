@@ -40,7 +40,7 @@ const NAV_TABS: { id: ActiveTab; label: string; short: string; icon: string }[] 
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
-  const { clients, loading, error, fetchClients, createClient, updateClient, removeClient } = useClients();
+  const { clients, loading, error, fetchClients, createClient, updateClient, removeClient, applyClientUpdate } = useClients();
   const [activeTab, setActiveTab] = useState<ActiveTab>('clients');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -393,6 +393,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                 client={viewClient}
                 onClose={() => { setViewClient(null); loadTasks(); }}
                 onDelete={async (id) => { await removeClient(id); setViewClient(null); loadTasks(); }}
+                onClientUpdated={(updated) => { setViewClient(updated); applyClientUpdate(updated); }}
               />
             ) : (
               <ClientList clients={clients} onEdit={handleEditClick} onDelete={removeClient} onView={handleViewClick} invoiceInfo={invoiceInfo} onRefreshInvoices={loadInvoiceInfo} invoiceLoading={invoiceLoading} />

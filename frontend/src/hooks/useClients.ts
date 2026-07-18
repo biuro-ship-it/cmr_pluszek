@@ -36,6 +36,11 @@ export const useClients = () => {
     setClients(prev => prev.filter(c => c.id !== id));
   };
 
+  // Podmienia klienta w liście bez zapytania do API (gdy karta sama zapisała zmianę).
+  const applyClientUpdate = (updated: Client) => {
+    setClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+  };
+
   return {
     clients,
     loading,
@@ -43,6 +48,7 @@ export const useClients = () => {
     fetchClients,
     createClient,
     updateClient,
-    removeClient
+    removeClient,
+    applyClientUpdate
   };
 };

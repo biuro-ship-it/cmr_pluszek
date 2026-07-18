@@ -25,11 +25,14 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // max 5 MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // max 10 MB (skany dokumentów bywają większe)
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowed = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'application/pdf', // skany dokumentów (np. wpis do działalności)
+    ];
     if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Dozwolone tylko pliki JPG, PNG, WebP, GIF'));
+    else cb(new Error('Dozwolone pliki: JPG, PNG, WebP, GIF, PDF'));
   },
 });
 

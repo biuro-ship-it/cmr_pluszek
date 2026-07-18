@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import {
-  Client, Interaction, InteractionFormData, Product, FakturowniaInvoice,
+  Client, ClientFile, ClientFormData, Interaction, InteractionFormData, Product, FakturowniaInvoice,
   getClientInteractions, createClientInteraction, updateClientInteraction,
-  getProductsList, createFollowUp, fakturowniaLookup, openFakturowniaPdf
+  getProductsList, createFollowUp, fakturowniaLookup, openFakturowniaPdf,
+  updateClient, uploadFile
 } from '../services/api';
 import EmailSendModal from './EmailSendModal';
 import NipBadge from './NipBadge';
@@ -98,6 +99,7 @@ interface ClientCardProps {
   client: ExtendedClient;
   onClose: () => void;
   onDelete?: (id: string) => void | Promise<void>;
+  onClientUpdated?: (client: Client) => void;
 }
 
 const CHANNEL_ICON: Record<string, string> = { telefon: '📞', mail: '✉️', spotkanie: '🤝', inne: '📌' };
@@ -256,7 +258,7 @@ const fkStatusLabel = (status: string): string => {
   return map[status] || status || '—';
 };
 
-const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) => {
+const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete, onClientUpdated }) => {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -264,6 +266,65 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) =>
   const [loading, setLoading] = useState(true);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+
+  // Dokumenty / załączniki klienta
+  const [files, setFiles] = useState<ClientFile[]>(client.files ?? []);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Przy zmianie klienta (otwarcie innej karty) zsynchronizuj listę plików.
+  useEffect(() => { setFiles(client.files ?? []); }, [client.id]);
+
+  // Buduje pełny payload klienta z podmienioną listą plików (PUT nadpisuje całość).
+  const buildClientPayload = (nextFiles: ClientFile[]): ClientFormData => ({
+    companyName: client.companyName,
+    type: client.type,
+    nip: client.nip ?? '',
+    contactPerson: client.contactPerson,
+    email: client.email,
+    phone: client.phone,
+    address: client.address,
+    shippingAddress: client.shippingAddress,
+    relationshipColor: client.relationshipColor,
+    files: nextFiles,
+  });
+
+  const persistFiles = async (nextFiles: ClientFile[]) => {
+    const updated = await updateClient(client.id, buildClientPayload(nextFiles));
+    setFiles(updated.files ?? nextFiles);
+    onClientUpdated?.(updated);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = ''; // pozwól wgrać ten sam plik ponownie
+    if (!file) return;
+    setUploadingFile(true);
+    try {
+      const url = await uploadFile(file);
+      const newFile: ClientFile = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        url,
+        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+        uploadedAt: new Date().toISOString().split('T')[0],
+      };
+      await persistFiles([...files, newFile]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Nie udało się wgrać pliku.');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    if (!window.confirm('Usunąć ten dokument?')) return;
+    try {
+      await persistFiles(files.filter(f => f.id !== fileId));
+    } catch {
+      alert('Nie udało się usunąć dokumentu.');
+    }
+  };
 
   // Faktury z Fakturowni (pobierane na żywo po NIP)
   const [fkInvoices, setFkInvoices] = useState<FakturowniaInvoice[]>([]);
@@ -382,6 +443,57 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete }) =>
             </div>
           )}
         </div>
+      </div>
+
+      {/* DOKUMENTY / ZAŁĄCZNIKI */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+          <h3 className="text-xl font-bold text-slate-800">📎 Dokumenty i załączniki</h3>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploadingFile}
+            className="bg-slate-900 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
+          >
+            {uploadingFile ? 'Wgrywam…' : '+ Dodaj dokument'}
+          </button>
+          <input
+            type="file"
+            className="hidden"
+            ref={fileRef}
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            onChange={handleFileUpload}
+          />
+        </div>
+        {files.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">
+            Brak dokumentów. Dodaj skan (PDF lub zdjęcie), np. wpis do działalności — max 10 MB.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {files.map(file => {
+              const isPdf = /\.pdf$/i.test(file.name);
+              return (
+                <div key={file.id} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 min-w-0 hover:text-blue-600"
+                    title={file.name}
+                  >
+                    <span className="text-xl shrink-0">{isPdf ? '📄' : '🖼'}</span>
+                    <span className="min-w-0">
+                      <span className="block font-bold text-sm text-slate-800 truncate">{file.name}</span>
+                      <span className="block text-xs text-slate-400">{file.size ? `${file.size} · ` : ''}{file.uploadedAt}</span>
+                    </span>
+                  </a>
+                  <button type="button" onClick={() => handleDeleteFile(file.id)} className="text-xs font-bold text-rose-500 hover:underline shrink-0">Usuń</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* FAKTURY Z FAKTUROWNI (tylko odczyt) */}

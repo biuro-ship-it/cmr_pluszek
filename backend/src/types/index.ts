@@ -6,6 +6,14 @@ export interface Address {
   number: string;
 }
 
+export interface ClientFile {
+  id: string;
+  name: string;
+  url: string;
+  size?: string;
+  uploadedAt: string;
+}
+
 export interface Client {
   id?: string;
   companyName: string;
@@ -16,6 +24,7 @@ export interface Client {
   phone: string;
   address: Address;
   shippingAddress?: Address;        // oddzielny adres do wysyłki
+  files?: ClientFile[];             // załączone dokumenty (skany, PDF-y)
   lastContactAt?: string;
   createdAt: string;
   updatedAt: string;

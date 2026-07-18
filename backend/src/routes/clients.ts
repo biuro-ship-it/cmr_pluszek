@@ -19,6 +19,14 @@ const AddressSchema = z.object({
   number: z.string().optional().default(''),
 });
 
+const ClientFileSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string(),
+  size: z.string().optional(),
+  uploadedAt: z.string(),
+});
+
 const ClientSchema = z.object({
   companyName: z.string().min(1, 'Nazwa firmy jest wymagana').max(200),
   type: z.enum(['hurt', 'sklep']),
@@ -29,6 +37,7 @@ const ClientSchema = z.object({
   address: AddressSchema,
   shippingAddress: AddressSchema.optional(),
   relationshipColor: z.string().optional().default('slate'), // DODANE: obsługa koloru relacji
+  files: z.array(ClientFileSchema).optional().default([]),   // załączone dokumenty
 });
 
 const InteractionSchema = z.object({
@@ -69,6 +78,7 @@ router.post('/', async (req: AuthRequest, res) => {
       phone: parsed.data.phone,
       address: parsed.data.address,
       relationshipColor: parsed.data.relationshipColor, // DODANE: Zapis koloru do bazy
+      files: parsed.data.files,                          // DODANE: załączone dokumenty
       ...(parsed.data.shippingAddress ? { shippingAddress: parsed.data.shippingAddress } : {}),
       createdAt: now,
       updatedAt: now,
@@ -96,6 +106,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
       phone: parsed.data.phone,
       address: parsed.data.address,
       relationshipColor: parsed.data.relationshipColor, // DODANE: Zapis koloru do bazy
+      files: parsed.data.files,                          // DODANE: załączone dokumenty
       ...(parsed.data.shippingAddress ? { shippingAddress: parsed.data.shippingAddress } : {}),
       updatedAt: new Date().toISOString(),
       updatedBy: req.user?.email || 'Nieznany',

@@ -16,6 +16,14 @@ export const emptyAddress = (): Address => ({
 
 export type ClientType = 'hurt' | 'sklep';
 
+export interface ClientFile {
+  id: string;
+  name: string;
+  url: string;
+  size?: string;
+  uploadedAt: string;
+}
+
 export interface Client {
   id: string;
   companyName: string;
@@ -27,6 +35,7 @@ export interface Client {
   address: Address;
   shippingAddress?: Address;
   relationshipColor?: string; // DODANE: Kolor relacji
+  files?: ClientFile[];       // DODANE: załączone dokumenty (skany, PDF-y)
   lastContactAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +51,7 @@ export interface ClientFormData {
   address: Address;
   shippingAddress?: Address;
   relationshipColor?: string; // DODANE: Kolor relacji
+  files?: ClientFile[];       // DODANE: załączone dokumenty
 }
 
 export interface Interaction {
@@ -359,6 +369,25 @@ export const uploadImage = async (file: File): Promise<string> => {
     body: formData,
   });
   if (!response.ok) throw new Error('Nie udało się wgrać zdjęcia');
+  const data = await response.json();
+  return data.url;
+};
+
+// Uniwersalny upload pliku (obrazy oraz PDF) — ten sam endpoint co uploadImage.
+export const uploadFile = async (file: File): Promise<string> => {
+  const auth = getAuth();
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_URL}/api/upload`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Nie udało się wgrać pliku');
+  }
   const data = await response.json();
   return data.url;
 };
