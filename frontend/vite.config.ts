@@ -14,6 +14,10 @@ export default defineConfig({
       workbox: {
         // Cache plików statycznych (JS, CSS, fonts, ikony)
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // SPA fallback do index.html, ale NIE dla plików z /uploads/ (PDF-y, skany)
+        // ani dla /api/ — inaczej otwarcie PDF ładuje aplikację i się zapętla.
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/uploads\//, /^\/api\//],
         // Strategie cache dla API — network first (świeże dane), fallback na cache
         runtimeCaching: [
           {
