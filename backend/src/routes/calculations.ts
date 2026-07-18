@@ -25,6 +25,8 @@ const TransportBracketSchema = z.object({
   id: z.string(),
   maxQty: z.number().nonnegative().default(0),
   cost: z.number().nonnegative().default(0),
+  costMode: z.enum(['total', 'perUnit']).default('total'),
+  color: z.string().default('#3b82f6'),
 });
 
 const CalculationSchema = z.object({

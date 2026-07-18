@@ -136,10 +136,14 @@ export interface CalcComponent {
   included: boolean;
 }
 
+export type TransportCostMode = 'total' | 'perUnit';
+
 export interface TransportBracket {
   id: string;
   maxQty: number;
   cost: number;
+  costMode: TransportCostMode;
+  color: string;
 }
 
 export interface Calculation {

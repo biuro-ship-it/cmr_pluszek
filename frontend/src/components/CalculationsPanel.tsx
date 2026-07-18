@@ -18,23 +18,13 @@ const componentCost = (c: CalcComponent): { cost: number; mismatch: boolean } =>
 const materialCostPerUnit = (components: CalcComponent[]): number =>
   components.reduce((sum, c) => sum + componentCost(c).cost, 0);
 
-// Najmniejszy próg, którego maxQty >= productionQty; koszt/szt = cost/qty. Brak → 0.
-const transportPerUnit = (brackets: TransportBracket[], qty: number): number => {
-  if (qty <= 0) return 0;
-  const match = [...brackets]
-    .filter(b => b.maxQty > 0)
-    .sort((a, b) => a.maxQty - b.maxQty)
-    .find(b => b.maxQty >= qty);
-  return match ? match.cost / qty : 0;
+// Transport / szt dla pojedynczego progu:
+// - 'perUnit' → koszt wpisany wprost jako cena za sztukę,
+// - 'total'   → koszt całkowity rozłożony na ilość progu (maxQty).
+const bracketTransportPerUnit = (b: TransportBracket): number => {
+  if (b.costMode === 'perUnit') return b.cost;
+  return b.maxQty > 0 ? b.cost / b.maxQty : 0;
 };
-
-interface CalcResult {
-  matPerUnit: number;
-  transPerUnit: number;
-  totalPerUnit: number;
-  price1: number;
-  price2: number;
-}
 
 // Marża handlowa (od ceny sprzedaży): cena = koszt / (1 − marża/100).
 // Marża >= 100% jest niemożliwa (dzielenie przez <=0) → zwracamy 0.
@@ -43,18 +33,54 @@ const priceFromMargin = (cost: number, marginPct: number): number => {
   return divisor > 0 ? cost / divisor : 0;
 };
 
+// Wycena jednego wariantu (progu transportu lub — gdy brak progów — bez transportu).
+interface CalcLine {
+  key: string;
+  bracket: TransportBracket | null; // null = brak progów, wariant bazowy bez transportu
+  qty: number;                      // ilość, na której liczymy sumy (maxQty progu / productionQty)
+  transPerUnit: number;
+  totalPerUnit: number;
+  price1: number;
+  price2: number;
+}
+
+interface CalcResult {
+  matPerUnit: number;
+  lines: CalcLine[];   // po jednej wycenie na każdy próg (min. 1)
+  bestKey: string | null; // klucz najtańszego wariantu (najniższy koszt całkowity / szt)
+}
+
 const computeCalc = (form: CalculationFormData): CalcResult => {
   const matPerUnit = materialCostPerUnit(form.components);
-  const transPerUnit = transportPerUnit(form.transportBrackets, form.productionQty);
-  const totalPerUnit = matPerUnit + transPerUnit;
-  return {
-    matPerUnit,
-    transPerUnit,
-    totalPerUnit,
-    price1: priceFromMargin(totalPerUnit, form.margin1),
-    price2: priceFromMargin(totalPerUnit, form.margin2),
+
+  const makeLine = (bracket: TransportBracket | null): CalcLine => {
+    const transPerUnit = bracket ? bracketTransportPerUnit(bracket) : 0;
+    const totalPerUnit = matPerUnit + transPerUnit;
+    const qty = bracket && bracket.maxQty > 0 ? bracket.maxQty : (form.productionQty || 0);
+    return {
+      key: bracket?.id ?? 'base',
+      bracket,
+      qty,
+      transPerUnit,
+      totalPerUnit,
+      price1: priceFromMargin(totalPerUnit, form.margin1),
+      price2: priceFromMargin(totalPerUnit, form.margin2),
+    };
   };
+
+  const lines = form.transportBrackets.length
+    ? form.transportBrackets.map(makeLine)
+    : [makeLine(null)];
+
+  // Najkorzystniejszy = najniższy koszt całkowity / szt (najtańszy transport).
+  const best = lines.reduce((a, b) => (b.totalPerUnit < a.totalPerUnit ? b : a), lines[0]);
+  const bestKey = lines.length > 1 ? best.key : null;
+
+  return { matPerUnit, lines, bestKey };
 };
+
+// Paleta kolorów progów (kolejne progi dostają kolejne kolory).
+const BRACKET_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4', '#64748b'];
 
 // ─── FORMULARZ ─────────────────────────────────────────────────────────────
 
@@ -95,6 +121,8 @@ export default function CalculationsPanel() {
   // Tekstowe wersje pól dziesiętnych (żeby dało się wpisać przecinek). Klucz = id pozycji.
   const [consText, setConsText] = useState<Record<string, string>>({});
   const [costText, setCostText] = useState<Record<string, string>>({});
+  // Które progi są aktualnie rozwinięte do edycji (klucz = id progu). Reszta = zwinięta.
+  const [editingBrackets, setEditingBrackets] = useState<Record<string, boolean>>({});
 
   const fetchAll = async () => {
     setLoading(true);
@@ -125,26 +153,36 @@ export default function CalculationsPanel() {
       })),
     ), [suppliers]);
 
+  // Uzupełnia stare progi (z bazy) o brakujące pola costMode/color.
+  const normalizeBracket = (b: TransportBracket, i: number): TransportBracket => ({
+    ...b,
+    costMode: b.costMode ?? 'total',
+    color: b.color ?? BRACKET_COLORS[i % BRACKET_COLORS.length],
+  });
+
   const openForm = (calc?: Calculation) => {
     if (calc) {
       setEditingId(calc.id!);
+      const brackets = (calc.transportBrackets ?? []).map(normalizeBracket);
       const f: CalculationFormData = {
         name: calc.name,
         components: calc.components ?? [],
         margin1: calc.margin1,
         margin2: calc.margin2,
-        transportBrackets: calc.transportBrackets ?? [],
+        transportBrackets: brackets,
         productionQty: calc.productionQty ?? 1,
         notes: calc.notes ?? '',
       };
       setForm(f);
       setConsText(Object.fromEntries((f.components).map(c => [c.id, String(c.consumption).replace('.', ',')])));
-      setCostText(Object.fromEntries((f.transportBrackets).map(b => [b.id, String(b.cost).replace('.', ',')])));
+      setCostText(Object.fromEntries(brackets.map(b => [b.id, String(b.cost).replace('.', ',')])));
+      setEditingBrackets({}); // wczytane progi startują zwinięte
     } else {
       setEditingId(null);
       setForm(emptyForm());
       setConsText({});
       setCostText({});
+      setEditingBrackets({});
     }
     setShowForm(true);
   };
@@ -183,9 +221,16 @@ export default function CalculationsPanel() {
 
   // — TRANSPORT —
   const addBracket = () => {
-    const b: TransportBracket = { id: crypto.randomUUID(), maxQty: 0, cost: 0 };
+    const b: TransportBracket = {
+      id: crypto.randomUUID(),
+      maxQty: 0,
+      cost: 0,
+      costMode: 'total',
+      color: BRACKET_COLORS[form.transportBrackets.length % BRACKET_COLORS.length],
+    };
     setForm(prev => ({ ...prev, transportBrackets: [...prev.transportBrackets, b] }));
     setCostText(prev => ({ ...prev, [b.id]: '' }));
+    setEditingBrackets(prev => ({ ...prev, [b.id]: true })); // nowy próg od razu rozwinięty
   };
 
   const updateBracket = (id: string, patch: Partial<TransportBracket>) => {
@@ -198,7 +243,11 @@ export default function CalculationsPanel() {
   const removeBracket = (id: string) => {
     setForm(prev => ({ ...prev, transportBrackets: prev.transportBrackets.filter(b => b.id !== id) }));
     setCostText(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    setEditingBrackets(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
   };
+
+  const setBracketEditing = (id: string, editing: boolean) =>
+    setEditingBrackets(prev => ({ ...prev, [id]: editing }));
 
   const result = computeCalc(form);
 
@@ -359,32 +408,107 @@ export default function CalculationsPanel() {
             <div className="space-y-2 mb-4">
               {form.transportBrackets.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-3 italic border border-dashed border-slate-300 rounded-xl">Brak progów — transport nie będzie doliczony.</p>
-              ) : form.transportBrackets.map(b => (
-                <div key={b.id} className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-bold text-slate-500">do ilości (szt):</label>
-                    <input type="number" min={0} value={b.maxQty || ''} onChange={e => updateBracket(b.id, { maxQty: parseNum(e.target.value) })} placeholder="0" className={`w-28 ${smallInput}`} />
+              ) : form.transportBrackets.map(b => {
+                const isEditing = editingBrackets[b.id];
+                const perUnit = bracketTransportPerUnit(b);
+                const modeLabel = b.costMode === 'perUnit' ? 'cena za szt' : 'koszt całkowity';
+
+                if (!isEditing) {
+                  // ZWINIĘTY PRÓG — podsumowanie z kolorem + przyciski
+                  return (
+                    <div key={b.id} className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-xl p-3">
+                      <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: b.color }} />
+                      <span className="font-bold text-sm text-slate-800">do {b.maxQty || 0} szt</span>
+                      <span className="text-xs text-slate-500">{modeLabel}: {zl(b.cost)} zł</span>
+                      <span className="text-xs font-bold text-slate-700">→ {zl(perUnit)} zł/szt</span>
+                      <div className="flex gap-2 ml-auto">
+                        <button type="button" onClick={() => setBracketEditing(b.id, true)} className="text-xs font-bold text-blue-600 hover:underline">Edytuj</button>
+                        <button type="button" onClick={() => removeBracket(b.id)} className="text-xs font-bold text-rose-500 hover:underline">Usuń</button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // ROZWINIĘTY PRÓG — edycja pól
+                return (
+                  <div key={b.id} className="bg-slate-50 border-2 rounded-xl p-3 space-y-3" style={{ borderColor: b.color }}>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-500">do ilości (szt):</label>
+                        <input type="number" min={0} value={b.maxQty || ''} onChange={e => updateBracket(b.id, { maxQty: parseNum(e.target.value) })} placeholder="0" className={`w-24 ${smallInput}`} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-500">{b.costMode === 'perUnit' ? 'cena za szt (zł):' : 'koszt całk. (zł):'}</label>
+                        <input
+                          value={costText[b.id] ?? ''}
+                          onChange={e => {
+                            const t = e.target.value;
+                            setCostText(prev => ({ ...prev, [b.id]: t }));
+                            updateBracket(b.id, { cost: parseNum(t) });
+                          }}
+                          inputMode="decimal"
+                          placeholder="0"
+                          className={`w-24 ${smallInput}`}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-slate-700">→ {zl(perUnit)} zł/szt</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4">
+                      {/* PRZEŁĄCZNIK trybu kosztu */}
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-500">tryb:</label>
+                        <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-bold">
+                          <button
+                            type="button"
+                            onClick={() => updateBracket(b.id, { costMode: 'total' })}
+                            className={`px-3 py-1.5 ${b.costMode !== 'perUnit' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'}`}
+                          >
+                            Koszt całkowity
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateBracket(b.id, { costMode: 'perUnit' })}
+                            className={`px-3 py-1.5 ${b.costMode === 'perUnit' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'}`}
+                          >
+                            Cena za sztukę
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* WYBÓR koloru */}
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-500">kolor:</label>
+                        <div className="flex gap-1.5">
+                          {BRACKET_COLORS.map(col => (
+                            <button
+                              key={col}
+                              type="button"
+                              onClick={() => updateBracket(b.id, { color: col })}
+                              className={`w-6 h-6 rounded-full transition-transform ${b.color === col ? 'ring-2 ring-offset-1 ring-slate-800 scale-110' : 'hover:scale-110'}`}
+                              style={{ backgroundColor: col }}
+                              aria-label={`Kolor ${col}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 ml-auto">
+                        <button type="button" onClick={() => setBracketEditing(b.id, false)} className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 px-3 py-1.5 rounded-lg">Gotowe</button>
+                        <button type="button" onClick={() => removeBracket(b.id)} className="text-xs font-bold text-rose-500 hover:underline">Usuń</button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 italic">
+                      {b.costMode === 'perUnit'
+                        ? 'Koszt wchodzi wprost jako cena za sztukę.'
+                        : 'Koszt całkowity rozłożony na ilość progu (koszt ÷ ilość).'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-bold text-slate-500">koszt (zł):</label>
-                    <input
-                      value={costText[b.id] ?? ''}
-                      onChange={e => {
-                        const t = e.target.value;
-                        setCostText(prev => ({ ...prev, [b.id]: t }));
-                        updateBracket(b.id, { cost: parseNum(t) });
-                      }}
-                      inputMode="decimal"
-                      placeholder="0"
-                      className={`w-28 ${smallInput}`}
-                    />
-                  </div>
-                  <button type="button" onClick={() => removeBracket(b.id)} className="text-xs font-bold text-rose-500 hover:underline ml-auto">Usuń</button>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <div className="max-w-xs">
-              <label className={labelCls}>Wielkość produkcji (szt) — do wyliczenia transportu / szt</label>
+            <div className="max-w-md">
+              <label className={labelCls}>Wielkość produkcji (szt) — używana tylko gdy brak progów</label>
               <input type="number" min={0} value={form.productionQty || ''} onChange={e => setForm({ ...form, productionQty: parseNum(e.target.value) })} className={inputCls} placeholder="1" />
             </div>
           </div>
@@ -395,27 +519,54 @@ export default function CalculationsPanel() {
             <textarea rows={2} value={form.notes ?? ''} onChange={e => setForm({ ...form, notes: e.target.value })} className={`${inputCls} text-sm resize-none`} />
           </div>
 
-          {/* PODSUMOWANIE */}
+          {/* PODSUMOWANIE — po jednej wycenie na każdy próg transportu */}
           <div className="bg-slate-900 text-white rounded-2xl p-5">
-            <h4 className="font-semibold text-sm mb-3 text-slate-300">📊 Podsumowanie (netto)</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <Summary label="Koszt materiałowy / szt" value={`${zl(result.matPerUnit)} zł`} />
-              <Summary label="Transport / szt" value={`${zl(result.transPerUnit)} zł`} />
-              <Summary label="Koszt całkowity / szt" value={`${zl(result.totalPerUnit)} zł`} strong />
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-sm text-slate-300">📊 Podsumowanie (netto)</h4>
+              <span className="text-xs text-slate-400">Koszt materiałowy / szt: <b className="text-white">{zl(result.matPerUnit)} zł</b></span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-white/10 rounded-xl p-4">
-                <p className="text-xs text-slate-300">Cena przy marży {form.margin1}%</p>
-                <p className="text-2xl font-black text-emerald-300">{zl(result.price1)} zł</p>
-                <p className="text-xs text-slate-400 mt-1">Za {form.productionQty || 0} szt: {zl(result.price1 * (form.productionQty || 0))} zł</p>
-                <p className="text-sm font-bold text-emerald-400 mt-1">💰 Zysk: {zl(result.price1 - result.totalPerUnit)} zł/szt <span className="text-emerald-300/80 font-semibold">(łącznie: {zl((result.price1 - result.totalPerUnit) * (form.productionQty || 0))} zł)</span></p>
-              </div>
-              <div className="bg-white/10 rounded-xl p-4">
-                <p className="text-xs text-slate-300">Cena przy marży {form.margin2}%</p>
-                <p className="text-2xl font-black text-emerald-300">{zl(result.price2)} zł</p>
-                <p className="text-xs text-slate-400 mt-1">Za {form.productionQty || 0} szt: {zl(result.price2 * (form.productionQty || 0))} zł</p>
-                <p className="text-sm font-bold text-emerald-400 mt-1">💰 Zysk: {zl(result.price2 - result.totalPerUnit)} zł/szt <span className="text-emerald-300/80 font-semibold">(łącznie: {zl((result.price2 - result.totalPerUnit) * (form.productionQty || 0))} zł)</span></p>
-              </div>
+
+            {result.lines.length > 1 && (
+              <p className="text-xs text-slate-400 mb-3">Porównanie wariantów transportu — zielona ramka = najtańszy koszt / szt.</p>
+            )}
+
+            <div className={`grid grid-cols-1 gap-4 ${result.lines.length > 1 ? 'lg:grid-cols-2 xl:grid-cols-3' : ''}`}>
+              {result.lines.map(line => {
+                const isBest = line.key === result.bestKey;
+                return (
+                  <div
+                    key={line.key}
+                    className={`rounded-xl p-4 border-2 ${isBest ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-white/5'}`}
+                  >
+                    {/* Nagłówek wariantu */}
+                    <div className="flex items-center gap-2 mb-3">
+                      {line.bracket && <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: line.bracket.color }} />}
+                      <span className="font-bold text-sm text-white">
+                        {line.bracket ? `do ${line.bracket.maxQty || 0} szt` : 'Bez transportu'}
+                      </span>
+                      {isBest && <span className="text-[10px] font-black uppercase bg-emerald-400 text-slate-900 px-2 py-0.5 rounded-full ml-auto">Najtańszy</span>}
+                    </div>
+
+                    <div className="space-y-1 text-xs text-slate-300 mb-3">
+                      <div className="flex justify-between"><span>Transport / szt</span><span className="font-bold text-white">{zl(line.transPerUnit)} zł</span></div>
+                      <div className="flex justify-between"><span>Koszt całkowity / szt</span><span className="font-black text-white">{zl(line.totalPerUnit)} zł</span></div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="bg-white/10 rounded-lg p-2.5">
+                        <p className="text-[11px] text-slate-300">Cena (marża {form.margin1}%)</p>
+                        <p className="text-xl font-black text-emerald-300">{zl(line.price1)} zł</p>
+                        <p className="text-[11px] text-slate-400">Za {line.qty} szt: {zl(line.price1 * line.qty)} zł · zysk {zl(line.price1 - line.totalPerUnit)} zł/szt</p>
+                      </div>
+                      <div className="bg-white/10 rounded-lg p-2.5">
+                        <p className="text-[11px] text-slate-300">Cena (marża {form.margin2}%)</p>
+                        <p className="text-xl font-black text-emerald-300">{zl(line.price2)} zł</p>
+                        <p className="text-[11px] text-slate-400">Za {line.qty} szt: {zl(line.price2 * line.qty)} zł · zysk {zl(line.price2 - line.totalPerUnit)} zł/szt</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -439,9 +590,24 @@ export default function CalculationsPanel() {
                   <div key={c.id} className="rounded-2xl border border-slate-200 p-6 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow bg-white">
                     <h3 className="text-lg font-bold text-slate-800 mb-3 truncate" title={c.name}>{c.name}</h3>
                     <div className="text-sm text-slate-600 space-y-1.5 mb-4 flex-grow">
-                      <p>Koszt całkowity / szt: <span className="font-black text-slate-800">{zl(r.totalPerUnit)} zł</span></p>
-                      <p>Cena (marża {c.margin1}%): <span className="font-bold text-emerald-600">{zl(r.price1)} zł</span> <span className="text-xs font-bold text-emerald-600">· zysk {zl(r.price1 - r.totalPerUnit)} zł/szt</span></p>
-                      <p>Cena (marża {c.margin2}%): <span className="font-bold text-emerald-600">{zl(r.price2)} zł</span> <span className="text-xs font-bold text-emerald-600">· zysk {zl(r.price2 - r.totalPerUnit)} zł/szt</span></p>
+                      <p className="text-xs text-slate-400">Koszt materiałowy / szt: <span className="font-bold text-slate-700">{zl(r.matPerUnit)} zł</span></p>
+                      {r.lines.map(line => {
+                        const isBest = line.key === r.bestKey;
+                        return (
+                          <div key={line.key} className={`rounded-lg px-2.5 py-1.5 ${isBest ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50'}`}>
+                            <div className="flex items-center gap-1.5 text-xs">
+                              {line.bracket && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: line.bracket.color }} />}
+                              <span className="font-bold text-slate-700">{line.bracket ? `do ${line.bracket.maxQty || 0} szt` : 'Bez transportu'}</span>
+                              <span className="text-slate-400">· koszt {zl(line.totalPerUnit)} zł/szt</span>
+                              {isBest && <span className="ml-auto text-[10px] font-black uppercase text-emerald-600">najtańszy</span>}
+                            </div>
+                            <div className="flex gap-3 mt-0.5 text-xs">
+                              <span>marża {c.margin1}%: <span className="font-bold text-emerald-600">{zl(line.price1)} zł</span></span>
+                              <span>marża {c.margin2}%: <span className="font-bold text-emerald-600">{zl(line.price2)} zł</span></span>
+                            </div>
+                          </div>
+                        );
+                      })}
                       <p className="text-xs text-slate-400 pt-1">Składników: {c.components?.length ?? 0}</p>
                     </div>
                     <div className="flex gap-2 mt-auto border-t border-slate-100 pt-4">
@@ -463,10 +629,3 @@ export default function CalculationsPanel() {
     </div>
   );
 }
-
-const Summary = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (
-  <div className="bg-white/10 rounded-xl p-3">
-    <p className="text-xs text-slate-300">{label}</p>
-    <p className={`${strong ? 'text-xl font-black' : 'text-lg font-bold'} text-white`}>{value}</p>
-  </div>
-);

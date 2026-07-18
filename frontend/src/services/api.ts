@@ -776,10 +776,14 @@ export interface CalcComponent {
   included: boolean;
 }
 
+export type TransportCostMode = 'total' | 'perUnit';
+
 export interface TransportBracket {
   id: string;
   maxQty: number;
   cost: number;
+  costMode: TransportCostMode; // 'total' = koszt całkowity (dzielony przez maxQty), 'perUnit' = cena za sztukę (wprost)
+  color: string;               // kolor progu do porównania (hex)
 }
 
 export interface Calculation {

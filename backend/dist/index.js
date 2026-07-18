@@ -51,6 +51,9 @@ const notes_1 = __importDefault(require("./routes/notes"));
 const foamStock_1 = __importDefault(require("./routes/foamStock"));
 const archive_1 = __importDefault(require("./routes/archive"));
 const emailTemplates_1 = __importDefault(require("./routes/emailTemplates"));
+const suppliers_1 = __importDefault(require("./routes/suppliers"));
+const calculations_1 = __importDefault(require("./routes/calculations"));
+const fakturownia_1 = __importDefault(require("./routes/fakturownia"));
 dotenv.config({ path: path_1.default.join(__dirname, '..', '.env') });
 const app = (0, express_1.default)();
 // Wymagane dla Phusion Passenger (X-Forwarded-For)
@@ -108,6 +111,9 @@ app.use('/api/notes', notes_1.default);
 app.use('/api/foam-stock', foamStock_1.default);
 app.use('/api/archive', archive_1.default);
 app.use('/api/email-templates', emailTemplates_1.default);
+app.use('/api/suppliers', suppliers_1.default);
+app.use('/api/calculations', calculations_1.default);
+app.use('/api/fakturownia', fakturownia_1.default);
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
