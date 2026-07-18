@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
-import { getNotes, createNote, updateNote, deleteNote, seedNotes, Note } from '../services/api';
+import { getNotes, createNote, updateNote, deleteNote, seedNotes, uploadFile, Note, NoteFile } from '../services/api';
 
 const NOTE_COLORS = [
   { id: 'yellow', bg: 'bg-yellow-100', border: 'border-yellow-300', hover: 'hover:border-yellow-400' },
@@ -18,7 +18,8 @@ const NotesBoard: React.FC = () => {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<NoteFile[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedColor, setSelectedColor] = useState(NOTE_COLORS[0]);
   const [isImportant, setIsImportant] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
@@ -75,6 +76,7 @@ const NotesBoard: React.FC = () => {
     setEditingNoteId(note.id);
     setTitle(note.title);
     setContent(note.content);
+    setFiles(note.files ?? []);
     setIsImportant(note.isImportant);
     setIsUrgent(note.isUrgent || false);
     const foundColor = NOTE_COLORS.find(c => c.bg === note.color) || NOTE_COLORS[0];
@@ -89,19 +91,44 @@ const NotesBoard: React.FC = () => {
     setEditingNoteId(null);
     setTitle('');
     setContent('');
-    setFile(null);
+    setFiles([]);
     setIsImportant(false);
     setIsUrgent(false);
     setSelectedColor(NOTE_COLORS[0]);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (e.target) e.target.value = ''; // pozwól wgrać ten sam plik ponownie
+    if (!selected) return;
+    setUploadingFile(true);
+    try {
+      const url = await uploadFile(selected);
+      const newFile: NoteFile = {
+        id: crypto.randomUUID(),
+        name: selected.name,
+        url,
+        size: `${(selected.size / 1024 / 1024).toFixed(2)} MB`,
+        uploadedAt: new Date().toISOString().split('T')[0],
+      };
+      setFiles(prev => [...prev, newFile]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Nie udało się wgrać pliku.');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleRemoveFile = (fileId: string) => {
+    setFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
   const handleSave = async () => {
-    if (file) console.log("Zapisuję plik:", file.name);
     if (!title.trim()) { alert("Podaj temat notatki!"); return; }
 
     setSaving(true);
     try {
-      const payload = { title, content, color: selectedColor.bg, isImportant, isUrgent };
+      const payload = { title, content, color: selectedColor.bg, isImportant, isUrgent, files };
       if (editingNoteId) {
         const updated = await updateNote(editingNoteId, payload);
         setNotes(prev => prev.map(note => note.id === editingNoteId ? updated : note));
@@ -184,7 +211,20 @@ const NotesBoard: React.FC = () => {
           </div>
           <div className="mb-6">
             <label className="block text-sm font-bold text-slate-700 mb-1">Załącz plik (PDF, JPG, itp.)</label>
-            <input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+            <input type="file" onChange={handleFileUpload} disabled={uploadingFile} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-60" />
+            {uploadingFile && <p className="text-xs text-slate-500 mt-2">⏳ Wgrywanie pliku...</p>}
+            {files.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {files.map(f => (
+                  <li key={f.id} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                    <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-700 hover:underline truncate">
+                      📎 {f.name}{f.size ? ` (${f.size})` : ''}
+                    </a>
+                    <button type="button" onClick={() => handleRemoveFile(f.id)} className="text-slate-400 hover:text-red-600 text-sm font-bold shrink-0" title="Usuń załącznik">✕</button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="flex gap-3">
             <button onClick={handleSave} disabled={saving} className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-sm text-base">
@@ -218,6 +258,16 @@ const NotesBoard: React.FC = () => {
                 <p className="text-xs font-bold text-slate-500 mb-4 opacity-70 border-b border-black/10 pb-2">Dodano: {note.date}</p>
 
                 <div className="text-sm text-slate-700 line-clamp-4 prose prose-sm max-w-none flex-grow mb-4" dangerouslySetInnerHTML={{ __html: note.content }} />
+
+                {note.files && note.files.length > 0 && (
+                  <div className="mb-4 flex flex-col gap-1">
+                    {note.files.map(f => (
+                      <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-blue-700 hover:underline truncate bg-white/60 rounded-lg px-2 py-1 border border-black/5" title={f.name}>
+                        📎 {f.name}
+                      </a>
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-auto pt-4 border-t border-black/10 flex gap-2">
                   {deleteConfirmId === note.id ? (

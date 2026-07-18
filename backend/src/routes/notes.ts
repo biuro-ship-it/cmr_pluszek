@@ -11,6 +11,14 @@ const COLLECTION = 'notes';
 // ==========================================
 // SCHEMAT WALIDACJI ZOD
 // ==========================================
+const NoteFileSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string(),
+  size: z.string().optional(),
+  uploadedAt: z.string(),
+});
+
 const NoteSchema = z.object({
   title: z.string().min(1, 'Temat notatki jest wymagany').max(200),
   content: z.string().optional().default(''),
@@ -18,6 +26,7 @@ const NoteSchema = z.object({
   isImportant: z.boolean().optional().default(false),
   isUrgent: z.boolean().optional().default(false),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format daty: YYYY-MM-DD').optional(),
+  files: z.array(NoteFileSchema).optional().default([]),
 });
 
 // Przykładowe notatki wgrywane jednorazowo przy pierwszym uruchomieniu
@@ -107,6 +116,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       color: parsed.data.color,
       isImportant: parsed.data.isImportant,
       isUrgent: parsed.data.isUrgent,
+      files: parsed.data.files,
       date: parsed.data.date || now.split('T')[0],
       createdBy: req.user?.email || 'Nieznany',
       createdAt: now,
@@ -143,6 +153,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       color: parsed.data.color,
       isImportant: parsed.data.isImportant,
       isUrgent: parsed.data.isUrgent,
+      files: parsed.data.files,
       ...(parsed.data.date ? { date: parsed.data.date } : {}),
       updatedAt: new Date().toISOString(),
       updatedBy: req.user?.email || 'Nieznany',

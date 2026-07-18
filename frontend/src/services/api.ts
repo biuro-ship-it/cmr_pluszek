@@ -145,6 +145,14 @@ export interface PromotionFormData {
   status: 'draft' | 'scheduled' | 'sent';
 }
 
+export interface NoteFile {
+  id: string;
+  name: string;
+  url: string;
+  size?: string;
+  uploadedAt: string;
+}
+
 export interface Note {
   id: string;
   title: string;
@@ -153,6 +161,7 @@ export interface Note {
   date: string;
   isImportant: boolean;
   isUrgent: boolean;
+  files?: NoteFile[];
   createdBy?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -165,6 +174,7 @@ export interface NoteFormData {
   color: string;
   isImportant: boolean;
   isUrgent: boolean;
+  files?: NoteFile[];
   date?: string;
 }
 
