@@ -24,6 +24,17 @@ export interface ClientFile {
   uploadedAt: string;
 }
 
+export interface ClientArrangements {
+  paymentTerm: string;   // termin płatności
+  discount: string;      // rabat
+  prices: string;        // ustalone ceny
+  other: string;         // inne ustalenia
+}
+
+export const emptyArrangements = (): ClientArrangements => ({
+  paymentTerm: '', discount: '', prices: '', other: ''
+});
+
 export interface Client {
   id: string;
   companyName: string;
@@ -36,6 +47,7 @@ export interface Client {
   shippingAddress?: Address;
   relationshipColor?: string; // DODANE: Kolor relacji
   files?: ClientFile[];       // DODANE: załączone dokumenty (skany, PDF-y)
+  arrangements?: ClientArrangements; // DODANE: stałe ustalenia handlowe
   lastContactAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -52,6 +64,7 @@ export interface ClientFormData {
   shippingAddress?: Address;
   relationshipColor?: string; // DODANE: Kolor relacji
   files?: ClientFile[];       // DODANE: załączone dokumenty
+  arrangements?: ClientArrangements; // DODANE: stałe ustalenia handlowe
 }
 
 export interface Interaction {

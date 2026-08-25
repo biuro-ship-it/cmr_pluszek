@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import {
-  Client, ClientFile, ClientFormData, Interaction, InteractionFormData, Product, FakturowniaInvoice,
+  Client, ClientArrangements, ClientFile, ClientFormData, Interaction, InteractionFormData, Product, FakturowniaInvoice,
+  emptyArrangements,
   getClientInteractions, createClientInteraction, updateClientInteraction,
   getProductsList, createFollowUp, fakturowniaLookup, openFakturowniaPdf,
   updateClient, uploadFile
@@ -238,6 +239,14 @@ const InteractionForm: React.FC<any> = ({ initialData, products, onSave, onCance
   );
 };
 
+// Pola stałych ustaleń handlowych — kolejność jak w karcie klienta.
+const ARRANGEMENT_FIELDS: { key: keyof ClientArrangements; label: string; placeholder: string }[] = [
+  { key: 'paymentTerm', label: 'Termin płatności', placeholder: 'np. przelew 14 dni' },
+  { key: 'discount',    label: 'Rabat',            placeholder: 'np. 12% na pluszaki' },
+  { key: 'prices',      label: 'Ceny',             placeholder: 'np. cennik hurtowy B 2026' },
+  { key: 'other',       label: 'Inne',             placeholder: 'np. transport gratis od 2000 zł' },
+];
+
 const getHeaderColor = (colorId?: string) => {
   switch (colorId) {
     case 'blue': return 'bg-blue-50 border-blue-200';
@@ -272,11 +281,23 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete, onCl
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Przy zmianie klienta (otwarcie innej karty) zsynchronizuj listę plików.
-  useEffect(() => { setFiles(client.files ?? []); }, [client.id]);
+  // Stałe ustalenia handlowe (termin płatności, rabat, ceny, inne)
+  const [arrangements, setArrangements] = useState<ClientArrangements>(client.arrangements ?? emptyArrangements());
+  const [arrangementsDraft, setArrangementsDraft] = useState<ClientArrangements>(client.arrangements ?? emptyArrangements());
+  const [editingArrangements, setEditingArrangements] = useState(false);
+  const [savingArrangements, setSavingArrangements] = useState(false);
 
-  // Buduje pełny payload klienta z podmienioną listą plików (PUT nadpisuje całość).
-  const buildClientPayload = (nextFiles: ClientFile[]): ClientFormData => ({
+  // Przy zmianie klienta (otwarcie innej karty) zsynchronizuj listę plików i ustalenia.
+  useEffect(() => {
+    setFiles(client.files ?? []);
+    const next = client.arrangements ?? emptyArrangements();
+    setArrangements(next);
+    setArrangementsDraft(next);
+    setEditingArrangements(false);
+  }, [client.id]);
+
+  // Buduje pełny payload klienta (PUT nadpisuje całość) z opcjonalną podmianą pól.
+  const buildClientPayload = (patch: Partial<ClientFormData> = {}): ClientFormData => ({
     companyName: client.companyName,
     type: client.type,
     nip: client.nip ?? '',
@@ -286,13 +307,33 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete, onCl
     address: client.address,
     shippingAddress: client.shippingAddress,
     relationshipColor: client.relationshipColor,
-    files: nextFiles,
+    files,
+    arrangements,
+    ...patch,
   });
 
   const persistFiles = async (nextFiles: ClientFile[]) => {
-    const updated = await updateClient(client.id, buildClientPayload(nextFiles));
+    const updated = await updateClient(client.id, buildClientPayload({ files: nextFiles }));
     setFiles(updated.files ?? nextFiles);
     onClientUpdated?.(updated);
+  };
+
+  const hasArrangements = ARRANGEMENT_FIELDS.some(f => (arrangements[f.key] || '').trim() !== '');
+
+  const handleSaveArrangements = async () => {
+    setSavingArrangements(true);
+    try {
+      const updated = await updateClient(client.id, buildClientPayload({ arrangements: arrangementsDraft }));
+      const saved = updated.arrangements ?? arrangementsDraft;
+      setArrangements(saved);
+      setArrangementsDraft(saved);
+      setEditingArrangements(false);
+      onClientUpdated?.(updated);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Nie udało się zapisać ustaleń.');
+    } finally {
+      setSavingArrangements(false);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -431,6 +472,73 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete, onCl
             <NipBadge nip={client.nip} />
           </div>
           <p className="text-slate-600 font-medium">Osoba kontaktowa: <span className="text-slate-900 font-bold">{client.contactPerson || 'Brak'}</span></p>
+
+          {/* USTALENIA — najważniejsze informacje handlowe, widoczne od razu po otwarciu karty */}
+          <div className="mt-4 bg-white/60 rounded-2xl p-4 shadow-sm backdrop-blur-sm w-full md:max-w-md">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">🤝 Ustalenia</h3>
+              {!editingArrangements && (
+                <button
+                  type="button"
+                  onClick={() => { setArrangementsDraft(arrangements); setEditingArrangements(true); }}
+                  className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors"
+                >
+                  ✎ Edytuj
+                </button>
+              )}
+            </div>
+
+            {editingArrangements ? (
+              <div className="space-y-2">
+                {ARRANGEMENT_FIELDS.map(f => (
+                  <div key={f.key}>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">{f.label}</label>
+                    <input
+                      type="text"
+                      value={arrangementsDraft[f.key]}
+                      onChange={e => setArrangementsDraft(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-colors"
+                    />
+                  </div>
+                ))}
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setArrangementsDraft(arrangements); setEditingArrangements(false); }}
+                    className="px-4 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold hover:bg-slate-50"
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveArrangements}
+                    disabled={savingArrangements}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-1.5 rounded-xl shadow disabled:opacity-60"
+                  >
+                    {savingArrangements ? 'Zapisuję...' : 'Zapisz'}
+                  </button>
+                </div>
+              </div>
+            ) : hasArrangements ? (
+              <div className="space-y-1.5 text-sm">
+                {ARRANGEMENT_FIELDS.map((f, i) => (
+                  <div key={f.key} className={`flex justify-between gap-4 ${i < ARRANGEMENT_FIELDS.length - 1 ? 'border-b border-slate-100 pb-1' : ''}`}>
+                    <span className="text-slate-400 shrink-0">{f.label}:</span>
+                    <span className="font-bold text-slate-800 text-right">{arrangements[f.key] || '—'}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setArrangementsDraft(arrangements); setEditingArrangements(true); }}
+                className="text-sm text-slate-400 italic hover:text-blue-600 transition-colors"
+              >
+                Brak ustaleń — kliknij, aby dodać.
+              </button>
+            )}
+          </div>
         </div>
         <div className="text-sm text-slate-600 bg-white/60 p-4 rounded-2xl md:text-right w-full md:w-auto shadow-sm backdrop-blur-sm">
           <p className="flex items-center gap-2 md:justify-end mb-1"><span>📞</span><a href={`tel:${client.phone}`} className="hover:text-blue-600 font-bold">{client.phone || 'Brak'}</a></p>

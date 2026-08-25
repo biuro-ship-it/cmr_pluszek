@@ -27,6 +27,15 @@ const ClientFileSchema = z.object({
   uploadedAt: z.string(),
 });
 
+const ArrangementsSchema = z.object({
+  paymentTerm: z.string().optional().default(''),
+  discount: z.string().optional().default(''),
+  prices: z.string().optional().default(''),
+  other: z.string().optional().default(''),
+});
+
+const emptyArrangements = () => ({ paymentTerm: '', discount: '', prices: '', other: '' });
+
 const ClientSchema = z.object({
   companyName: z.string().min(1, 'Nazwa firmy jest wymagana').max(200),
   type: z.enum(['hurt', 'sklep']),
@@ -38,6 +47,7 @@ const ClientSchema = z.object({
   shippingAddress: AddressSchema.optional(),
   relationshipColor: z.string().optional().default('slate'), // DODANE: obsługa koloru relacji
   files: z.array(ClientFileSchema).optional().default([]),   // załączone dokumenty
+  arrangements: ArrangementsSchema.optional().default(emptyArrangements()), // stałe ustalenia handlowe
 });
 
 const InteractionSchema = z.object({
@@ -79,6 +89,7 @@ router.post('/', async (req: AuthRequest, res) => {
       address: parsed.data.address,
       relationshipColor: parsed.data.relationshipColor, // DODANE: Zapis koloru do bazy
       files: parsed.data.files,                          // DODANE: załączone dokumenty
+      arrangements: parsed.data.arrangements,            // DODANE: stałe ustalenia handlowe
       ...(parsed.data.shippingAddress ? { shippingAddress: parsed.data.shippingAddress } : {}),
       createdAt: now,
       updatedAt: now,
@@ -107,6 +118,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
       address: parsed.data.address,
       relationshipColor: parsed.data.relationshipColor, // DODANE: Zapis koloru do bazy
       files: parsed.data.files,                          // DODANE: załączone dokumenty
+      arrangements: parsed.data.arrangements,            // DODANE: stałe ustalenia handlowe
       ...(parsed.data.shippingAddress ? { shippingAddress: parsed.data.shippingAddress } : {}),
       updatedAt: new Date().toISOString(),
       updatedBy: req.user?.email || 'Nieznany',

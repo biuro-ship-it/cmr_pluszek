@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
-import { ClientFormData, Client, ClientType, Address, emptyAddress } from '../services/api';
+import { ClientFormData, Client, ClientType, Address, emptyAddress, emptyArrangements } from '../services/api';
 
 // Rozszerzamy typy o nasz nowy kolor relacji
 type ExtendedClientFormData = ClientFormData & { relationshipColor?: string };
@@ -142,6 +142,10 @@ const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel, on
     address: initial?.address || emptyAddress(),
     shippingAddress: initial?.shippingAddress,
     relationshipColor: initial?.relationshipColor || 'slate', // Domyślny kolor
+    // Formularz nie edytuje tych pól (robi to karta klienta), ale PUT nadpisuje
+    // całego klienta — musimy je przenieść, żeby ich nie skasować.
+    files: initial?.files ?? [],
+    arrangements: initial?.arrangements ?? emptyArrangements(),
   });
 
   const [showShipping, setShowShipping] = useState(!!initial?.shippingAddress);
@@ -161,6 +165,8 @@ const ClientForm: React.FC<ClientFormProps> = ({ initial, onSubmit, onCancel, on
       address: initial?.address || emptyAddress(),
       shippingAddress: initial?.shippingAddress,
       relationshipColor: initial?.relationshipColor || 'slate',
+      files: initial?.files ?? [],
+      arrangements: initial?.arrangements ?? emptyArrangements(),
     });
     setShowShipping(!!initial?.shippingAddress);
   }, [initial]);

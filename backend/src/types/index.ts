@@ -14,6 +14,13 @@ export interface ClientFile {
   uploadedAt: string;
 }
 
+export interface ClientArrangements {
+  paymentTerm: string;   // termin płatności
+  discount: string;      // rabat
+  prices: string;        // ustalone ceny
+  other: string;         // inne ustalenia
+}
+
 export interface Client {
   id?: string;
   companyName: string;
@@ -25,6 +32,7 @@ export interface Client {
   address: Address;
   shippingAddress?: Address;        // oddzielny adres do wysyłki
   files?: ClientFile[];             // załączone dokumenty (skany, PDF-y)
+  arrangements?: ClientArrangements; // stałe ustalenia handlowe z klientem
   lastContactAt?: string;
   createdAt: string;
   updatedAt: string;
