@@ -10,6 +10,7 @@ import {
 } from '../services/api';
 import EmailSendModal from './EmailSendModal';
 import NipBadge from './NipBadge';
+import { clampNotes } from '../utils/interactions';
 
 type ExtendedClient = Client & { relationshipColor?: string };
 
@@ -18,12 +19,16 @@ interface ProductEmailModalProps {
   client: ExtendedClient;
   products: Product[];
   onClose: () => void;
+  // Wysłana oferta trafia do historii kontaktów — karta dopisuje ją do osi czasu.
+  onLogged?: (interaction: Interaction) => void;
 }
 
-const ProductEmailModal: React.FC<ProductEmailModalProps> = ({ client, products, onClose }) => {
+const ProductEmailModal: React.FC<ProductEmailModalProps> = ({ client, products, onClose, onLogged }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [emailBody, setEmailBody] = useState('');
   const [step, setStep] = useState<'select' | 'preview'>('select');
+  const [sending, setSending] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
 
   const toggleProduct = (id: string) => {
     setSelected(prev => {
@@ -48,11 +53,39 @@ const ProductEmailModal: React.FC<ProductEmailModalProps> = ({ client, products,
     return `${greeting}\n\nW nawiązaniu do naszej rozmowy, przesyłam informacje o produktach z naszej oferty:\n\n${productLines}\n\nW razie pytań dotyczących cen, dostępności lub zamówienia — pozostaję do dyspozycji.\n\nPozdrawiam serdecznie,`;
   };
 
-  const handleSend = () => {
-    const subject = encodeURIComponent(`Oferta produktów — Pluszek`);
-    const body = encodeURIComponent(emailBody);
-    window.location.href = `mailto:${client.email}?subject=${subject}&body=${body}`;
+  const subject = 'Oferta produktów — Pluszek';
+
+  const openMailClient = () => {
+    window.location.href =
+      `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
     onClose();
+  };
+
+  // Zapis w historii PRZED mailto — nawigacja potrafi urwać niedokończony await.
+  const handleSend = async () => {
+    setSending(true);
+    setLogError(null);
+    try {
+      const interaction = await createClientInteraction(client.id, {
+        contactDate: new Date().toISOString().split('T')[0],
+        channel: 'mail',
+        notes: clampNotes(
+          `✉️ OFERTA PRODUKTÓW wysłana mailem\n` +
+          `Do: ${client.email}\n` +
+          `Temat: ${subject}\n\n` +
+          `Produkty: ${selectedProducts.map(p => p.name).join(', ')}\n\n` +
+          `— treść wysłanej wiadomości —\n${emailBody}`
+        ),
+        tradeNotes: `Oferta produktów: ${selectedProducts.length}`,
+        products: selectedProducts.map(p => p.name),
+      });
+      onLogged?.(interaction);
+      openMailClient();
+    } catch {
+      setLogError('Nie udało się zapisać oferty w historii kontaktów.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -83,11 +116,24 @@ const ProductEmailModal: React.FC<ProductEmailModalProps> = ({ client, products,
         {step === 'preview' && (
           <>
             <div className="flex-1 overflow-y-auto p-6">
+              {logError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl mb-4">⚠️ {logError}</div>
+              )}
               <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={16} className="w-full border border-slate-200 rounded-xl p-4 text-sm font-mono outline-none focus:border-blue-500 resize-none" />
+              <p className="text-xs text-slate-400 mt-2">Po wysłaniu oferta zapisze się w historii kontaktów klienta razem z tą treścią.</p>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-between">
+            <div className="px-6 py-4 border-t border-slate-100 flex flex-wrap justify-between items-center gap-2">
               <button onClick={() => setStep('select')} className="text-slate-500 font-semibold text-sm">← Wróć</button>
-              <button onClick={handleSend} className="bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-xl flex items-center gap-2"><span>✉️</span> Otwórz w kliencie poczty</button>
+              <div className="flex gap-2">
+                {logError && (
+                  <button onClick={openMailClient} className="border border-slate-200 text-slate-600 font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-slate-100">
+                    Wyślij bez zapisu
+                  </button>
+                )}
+                <button onClick={handleSend} disabled={sending} className="bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-xl flex items-center gap-2 disabled:opacity-60">
+                  <span>✉️</span> {sending ? 'Zapisuję...' : 'Zapisz i otwórz w poczcie'}
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -712,8 +758,21 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete, onCl
           </div>
         )}
       </div>
-      {showEmailModal && <ProductEmailModal client={client} products={products} onClose={() => setShowEmailModal(false)} />}
-      {showTemplateModal && <EmailSendModal client={client} onClose={() => setShowTemplateModal(false)} />}
+      {showEmailModal && (
+        <ProductEmailModal
+          client={client}
+          products={products}
+          onClose={() => setShowEmailModal(false)}
+          onLogged={interaction => setInteractions(prev => [interaction, ...prev])}
+        />
+      )}
+      {showTemplateModal && (
+        <EmailSendModal
+          client={client}
+          onClose={() => setShowTemplateModal(false)}
+          onLogged={interaction => setInteractions(prev => [interaction, ...prev])}
+        />
+      )}
     </div>
   );
 };

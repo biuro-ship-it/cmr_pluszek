@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useClients } from '../hooks/useClients';
 import ClientForm from '../components/ClientForm';
-import ClientList from '../components/ClientList';
+import ClientList, { ClientListView, emptyClientListView } from '../components/ClientList';
 import ClientCard from '../components/ClientCard';
 import ProductsPanel from '../components/ProductsPanel';
 import AddressesView from '../components/AddressesView';
@@ -50,6 +50,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
   const [tasks, setTasks] = useState<FollowUp[]>([]);
   const [invoiceInfo, setInvoiceInfo] = useState<InvoiceInfo>({});
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  // Filtry i numer strony listy klientów — trzymane tutaj, żeby przetrwały
+  // wejście w kartę klienta / formularz edycji i powrót na listę.
+  const [clientListView, setClientListView] = useState<ClientListView>(emptyClientListView);
 
   // Pobiera obraz faktur firm z Fakturowni (kategoria CRM-Pluszek) i buduje mapę po NIP.
   const loadInvoiceInfo = useCallback(async () => {
@@ -396,7 +399,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                 onClientUpdated={(updated) => { setViewClient(updated); applyClientUpdate(updated); }}
               />
             ) : (
-              <ClientList clients={clients} onEdit={handleEditClick} onDelete={removeClient} onView={handleViewClick} invoiceInfo={invoiceInfo} onRefreshInvoices={loadInvoiceInfo} invoiceLoading={invoiceLoading} />
+              <ClientList
+                clients={clients}
+                onEdit={handleEditClick}
+                onDelete={removeClient}
+                onView={handleViewClick}
+                invoiceInfo={invoiceInfo}
+                onRefreshInvoices={loadInvoiceInfo}
+                invoiceLoading={invoiceLoading}
+                view={clientListView}
+                onViewChange={setClientListView}
+              />
             )}
           </>
         )}

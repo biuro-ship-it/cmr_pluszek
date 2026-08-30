@@ -1,10 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Client } from '../services/api';
 import NipBadge from './NipBadge';
 
 type ExtendedClient = Client & { relationshipColor?: string };
 
 type InvoiceInfo = Record<string, { count: number; lastIssueDate: string; net: number }>;
+
+// Stan widoku listy (filtry + strona) mieszka w Dashboardzie, bo ClientList jest
+// odmontowywany na czas karty klienta — trzymany lokalnie resetowalby sie do strony 1.
+export interface ClientListView {
+  search: string;
+  provinceFilter: string;
+  sortBy: string;
+  currentPage: number;
+}
+
+export const emptyClientListView = (): ClientListView => ({
+  search: '',
+  provinceFilter: '',
+  sortBy: 'alpha',
+  currentPage: 1,
+});
 
 interface ClientListProps {
   clients: ExtendedClient[];
@@ -14,6 +30,8 @@ interface ClientListProps {
   invoiceInfo?: InvoiceInfo;
   onRefreshInvoices?: () => void;
   invoiceLoading?: boolean;
+  view: ClientListView;
+  onViewChange: (next: ClientListView) => void;
 }
 
 // Sygnał „wymaga uwagi": w Fakturowni jest faktura nowsza niż ostatni kontakt w CRM.
@@ -48,13 +66,13 @@ const getCardStyle = (colorId?: string) => {
   }
 };
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo, onRefreshInvoices, invoiceLoading }) => {
-  const [search, setSearch] = useState('');
-  const [provinceFilter, setProvinceFilter] = useState('');
-  const [sortBy, setSortBy] = useState('alpha');
-  const [currentPage, setCurrentPage] = useState(1);
+const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo, onRefreshInvoices, invoiceLoading, view, onViewChange }) => {
+  const { search, provinceFilter, sortBy, currentPage } = view;
 
-  useEffect(() => { setCurrentPage(1); }, [search, provinceFilter, sortBy]);
+  // Zmiana filtra/sortowania cofa na pierwszą stronę; samo przewijanie stron jej nie rusza.
+  const setFilters = (patch: Partial<ClientListView>) =>
+    onViewChange({ ...view, ...patch, currentPage: 1 });
+  const goToPage = (page: number) => onViewChange({ ...view, currentPage: page });
 
   let processed = clients.filter((c) => {
     const q = search.toLowerCase();
@@ -78,7 +96,10 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
   });
 
   const totalPages = Math.ceil(processed.length / PAGE_SIZE) || 1;
-  const paginated = processed.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  // Gdy lista sie skurczy (usuniety klient, wezszy filtr), zapamietana strona moze
+  // wypasc poza zakres — pokazujemy wtedy ostatnia istniejaca zamiast pustki.
+  const page = Math.min(Math.max(currentPage, 1), totalPages);
+  const paginated = processed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const renderDaysCounter = (client: Client) => {
     const dateToUse = client.lastContactAt || client.createdAt;
@@ -95,16 +116,16 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
     <div>
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 animate-in fade-in">
         <div className="flex-1">
-          <input type="text" placeholder="Szukaj (nazwa, osoba, e-mail, telefon)..." className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="text" placeholder="Szukaj (nazwa, osoba, e-mail, telefon)..." className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50" value={search} onChange={(e) => setFilters({ search: e.target.value })} />
         </div>
         <div className="w-full md:w-1/4">
-          <select className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 cursor-pointer" value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)}>
+          <select className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 cursor-pointer" value={provinceFilter} onChange={(e) => setFilters({ provinceFilter: e.target.value })}>
             <option value="">Wszystkie województwa</option>
             {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
         <div className="w-full md:w-1/4">
-          <select className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 cursor-pointer" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <select className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 cursor-pointer" value={sortBy} onChange={(e) => setFilters({ sortBy: e.target.value })}>
             <option value="alpha">🔤 Alfabetycznie (A-Z)</option>
             <option value="oldest">⏳ Od najstarszego kontaktu</option>
             <option value="type">🏢 Według kategorii</option>
@@ -170,9 +191,9 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
 
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 bg-white py-3 px-6 rounded-2xl border border-slate-200 w-max mx-auto shadow-sm">
-          <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="text-slate-500 hover:text-blue-600 font-bold disabled:opacity-30">← Poprzednia</button>
-          <span className="text-sm font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">Strona {currentPage} z {totalPages}</span>
-          <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="text-slate-500 hover:text-blue-600 font-bold disabled:opacity-30">Następna →</button>
+          <button disabled={page === 1} onClick={() => goToPage(page - 1)} className="text-slate-500 hover:text-blue-600 font-bold disabled:opacity-30">← Poprzednia</button>
+          <span className="text-sm font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">Strona {page} z {totalPages}</span>
+          <button disabled={page === totalPages} onClick={() => goToPage(page + 1)} className="text-slate-500 hover:text-blue-600 font-bold disabled:opacity-30">Następna →</button>
         </div>
       )}
     </div>

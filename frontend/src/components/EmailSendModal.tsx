@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Client, EmailTemplate,
-  getEmailTemplates, applyPlaceholders,
+  Client, EmailTemplate, Interaction,
+  getEmailTemplates, applyPlaceholders, createClientInteraction,
 } from '../services/api';
+import { clampNotes } from '../utils/interactions';
 
 interface EmailSendModalProps {
   client: Client;
   onClose: () => void;
+  // Wysłany mail trafia do historii kontaktów — karta dopisuje go do osi czasu.
+  onLogged?: (interaction: Interaction) => void;
 }
 
 const CATEGORY_BADGE: Record<string, string> = {
@@ -16,7 +19,7 @@ const CATEGORY_BADGE: Record<string, string> = {
   'inne': 'bg-slate-100 text-slate-600',
 };
 
-const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
+const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose, onLogged }) => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<EmailTemplate | null>(null);
@@ -24,6 +27,8 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
   const [body, setBody] = useState('');
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [logError, setLogError] = useState('');
 
   useEffect(() => {
     getEmailTemplates()
@@ -41,11 +46,38 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
   };
 
   // Otwiera domyślny program pocztowy (mailto) z gotowym mailem.
-  const handleSend = () => {
+  const openMailClient = () => {
     if (!client.email) return;
-    const mailto = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
+    window.location.href =
+      `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setOpened(true);
+  };
+
+  // Zapis w historii PRZED mailto — nawigacja potrafi urwać niedokończony await.
+  const handleSend = async () => {
+    if (!client.email) return;
+    setSending(true);
+    setLogError('');
+    try {
+      const interaction = await createClientInteraction(client.id, {
+        contactDate: new Date().toISOString().split('T')[0],
+        channel: 'mail',
+        notes: clampNotes(
+          `✉️ MAIL Z SZABLONU „${selected?.name ?? '—'}" wysłany\n` +
+          `Do: ${client.email}\n` +
+          `Temat: ${subject}\n\n` +
+          `— treść wysłanej wiadomości —\n${body}`
+        ),
+        tradeNotes: `Szablon: ${selected?.name ?? '—'}`,
+        products: [],
+      });
+      onLogged?.(interaction);
+      openMailClient();
+    } catch {
+      setLogError('Nie udało się zapisać maila w historii kontaktów.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -72,6 +104,7 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
           ) : (
             <>
               {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl mb-4">⚠️ {error}</div>}
+              {logError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl mb-4">⚠️ {logError}</div>}
 
               {!selected && (
                 <>
@@ -125,12 +158,20 @@ const EmailSendModal: React.FC<EmailSendModalProps> = ({ client, onClose }) => {
         </div>
 
         {!opened && selected && (
-          <div className="px-6 py-4 border-t border-slate-100 flex justify-between items-center">
-            <span className="text-xs text-slate-400">Otworzy Twój program pocztowy</span>
-            <button onClick={handleSend} disabled={!subject || !body}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50">
-              ✉️ Wyślij
-            </button>
+          <div className="px-6 py-4 border-t border-slate-100 flex flex-wrap justify-between items-center gap-2">
+            <span className="text-xs text-slate-400">Zapisze wpis w historii i otworzy program pocztowy</span>
+            <div className="flex gap-2">
+              {logError && (
+                <button onClick={openMailClient}
+                  className="border border-slate-200 text-slate-600 font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-slate-100">
+                  Wyślij bez zapisu
+                </button>
+              )}
+              <button onClick={handleSend} disabled={sending || !subject || !body}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                {sending ? 'Zapisuję...' : '✉️ Wyślij'}
+              </button>
+            </div>
           </div>
         )}
       </div>
