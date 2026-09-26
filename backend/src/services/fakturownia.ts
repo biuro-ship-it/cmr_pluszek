@@ -3,6 +3,8 @@
 //   FAKTUROWNIA_DOMAIN=pluszek        (subdomena: pluszek.fakturownia.pl)
 //   FAKTUROWNIA_TOKEN=xxxxxxxxxxxxxxx (Ustawienia → Konto → Integracja → Kod API)
 
+import { isPluszekInvoice } from './fakturowniaSync';
+
 // Czytamy env leniwie (w funkcjach), bo dotenv.config() w index.ts wykonuje się
 // PO zaimportowaniu tego modułu — odczyt na górze złapałby puste wartości.
 const getDomain = (): string => process.env.FAKTUROWNIA_DOMAIN || '';
@@ -66,17 +68,18 @@ export const getClientByNip = async (nip: string): Promise<FakturowniaClient | n
   };
 };
 
-/** Pobiera faktury danego klienta (po client_id), z paginacją (per_page=100, max 5 stron). */
+/** Faktury Pluszka danego klienta (po client_id, tylko materace), z paginacją (per_page=100, max 5 stron). */
 export const getInvoicesByClientId = async (clientId: number): Promise<FakturowniaInvoice[]> => {
   const all: FakturowniaInvoice[] = [];
   const MAX_PAGES = 5;
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `${baseUrl()}/invoices.json?client_id=${clientId}&page=${page}&per_page=100&api_token=${getToken()}`;
+    const url = `${baseUrl()}/invoices.json?client_id=${clientId}&include_positions=true&page=${page}&per_page=100&api_token=${getToken()}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`Fakturownia invoices: ${res.status}`);
     const arr = (await res.json()) as any[];
     if (!Array.isArray(arr) || arr.length === 0) break;
     for (const inv of arr) {
+      if (!isPluszekInvoice(inv.positions)) continue;
       all.push({
         id: inv.id,
         number: inv.number || '',
@@ -107,8 +110,8 @@ export interface FakturowniaSalesInvoice extends FakturowniaInvoice {
 }
 
 /**
- * Wszystkie faktury sprzedaży z konta (period=all), strona po stronie.
- * Faktury kosztowe (income=0) pomijamy. Przy przekroczeniu bezpiecznika rzucamy błąd,
+ * Wszystkie faktury sprzedaży Pluszka z konta (period=all), strona po stronie.
+ * Faktury kosztowe (income=0) i faktury bez materacy (ramy, antyramy…) pomijamy. Przy przekroczeniu bezpiecznika rzucamy błąd,
  * żeby nie zapisać klientom niepełnej listy.
  */
 export const getAllSalesInvoices = async (): Promise<FakturowniaSalesInvoice[]> => {
@@ -116,13 +119,14 @@ export const getAllSalesInvoices = async (): Promise<FakturowniaSalesInvoice[]> 
   const MAX_PAGES = 200; // 20 000 faktur
   for (let page = 1; ; page++) {
     if (page > MAX_PAGES) throw new Error('Fakturownia: zbyt wiele faktur do pobrania naraz');
-    const url = `${baseUrl()}/invoices.json?period=all&page=${page}&per_page=100&api_token=${getToken()}`;
+    const url = `${baseUrl()}/invoices.json?period=all&include_positions=true&page=${page}&per_page=100&api_token=${getToken()}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`Fakturownia invoices: ${res.status}`);
     const arr = (await res.json()) as any[];
     if (!Array.isArray(arr) || arr.length === 0) break;
     for (const inv of arr) {
       if (inv.income === false || String(inv.income) === '0') continue;
+      if (!isPluszekInvoice(inv.positions)) continue;
       byId.set(inv.id, {
         id: inv.id,
         number: inv.number || '',

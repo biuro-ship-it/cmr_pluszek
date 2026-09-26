@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { invoiceNumberFromNote, normalizeVat, planBulkSync, SyncClient } from './fakturowniaSync';
+import { invoiceNumberFromNote, isPluszekInvoice, normalizeVat, planBulkSync, SyncClient } from './fakturowniaSync';
 import { FakturowniaSalesInvoice } from './fakturownia';
 
 const inv = (id: number, buyerTaxNo: string, priceNet: number, issueDate: string, extra: Partial<FakturowniaSalesInvoice> = {}): FakturowniaSalesInvoice => ({
@@ -26,6 +26,19 @@ describe('normalizeVat', () => {
   it('odrzuca pusty lub za krótki numer', () => {
     assert.equal(normalizeVat('123'), '');
     assert.equal(normalizeVat(undefined), '');
+  });
+});
+
+describe('isPluszekInvoice', () => {
+  it('liczy faktury z materacem lub pośrednictwem', () => {
+    assert.equal(isPluszekInvoice([{ name: 'Materac pluszek MAXI mix' }, { name: 'usługa spedycji obca' }]), true);
+    assert.equal(isPluszekInvoice([{ name: 'BABYMAM MATERACYK DO KĄPIELI MIDI NIEBIESKI' }]), true);
+    assert.equal(isPluszekInvoice([{ name: 'usługa pośrednictwa sprzedaż' }]), true);
+  });
+  it('pomija ramy, antyramy i fakturę bez pozycji', () => {
+    assert.equal(isPluszekInvoice([{ name: 'Listwa Duo-Net 7214 czarna' }, { name: 'Forma dostawy: Kurier' }]), false);
+    assert.equal(isPluszekInvoice([]), false);
+    assert.equal(isPluszekInvoice(undefined), false);
   });
 });
 

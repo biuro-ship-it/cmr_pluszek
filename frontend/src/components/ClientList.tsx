@@ -184,7 +184,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
               <button type="button" onClick={() => setSyncSummary(null)} className="text-slate-400 hover:text-slate-700 font-bold" aria-label="Zamknij podsumowanie">✕</button>
             </div>
             <p className="text-slate-500">
-              Pobrano z Fakturowni {syncSummary.invoicesFetched} faktur sprzedaży, dopasowano {syncSummary.invoicesMatched}
+              Pobrano z Fakturowni {syncSummary.invoicesFetched} faktur na materace, dopasowano {syncSummary.invoicesMatched}
               {syncSummary.invoicesWithoutNip > 0 && ` (${syncSummary.invoicesWithoutNip} bez NIP nabywcy)`}.
             </p>
             {syncSummary.noNip.length > 0 && (

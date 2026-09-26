@@ -55,6 +55,14 @@ export const normalizeVat = (v: string | undefined): string => {
   return key.length >= 5 ? key : '';
 };
 
+// Konto Fakturowni jest wspólne z ramami/antyramami — CRM Pluszek dotyczy tylko materacy
+// do kąpieli (MAXI/MIDI). „Usługa pośrednictwa sprzedaż" też jest sprzedażą materacy.
+const PLUSZEK_POSITION = /materac|pośrednictw/i;
+
+/** Czy faktura dotyczy Pluszka — ma choć jedną pozycję z materacem lub pośrednictwem. */
+export const isPluszekInvoice = (positions: { name?: string }[] | undefined): boolean =>
+  (positions ?? []).some(p => PLUSZEK_POSITION.test(p.name || ''));
+
 /** Numer faktury z wpisu w historii (ten sam wzorzec co w ClientCard). */
 export const invoiceNumberFromNote = (notes: string | undefined): string =>
   notes?.match(/Faktura\s+(.+?):/)?.[1]?.trim() || '';
