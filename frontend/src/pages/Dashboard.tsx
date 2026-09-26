@@ -407,6 +407,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
                 invoiceInfo={invoiceInfo}
                 onRefreshInvoices={loadInvoiceInfo}
                 invoiceLoading={invoiceLoading}
+                onInvoicesSynced={() => { fetchClients(true); loadInvoiceInfo(); }}
                 view={clientListView}
                 onViewChange={setClientListView}
               />

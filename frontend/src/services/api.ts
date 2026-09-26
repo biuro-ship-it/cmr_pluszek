@@ -48,6 +48,8 @@ export interface Client {
   relationshipColor?: string; // DODANE: Kolor relacji
   files?: ClientFile[];       // DODANE: załączone dokumenty (skany, PDF-y)
   arrangements?: ClientArrangements; // DODANE: stałe ustalenia handlowe
+  fakturowniaInvoices?: FakturowniaInvoice[]; // migawka faktur z hurtowej aktualizacji
+  fakturowniaSyncedAt?: string;
   lastContactAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -307,6 +309,26 @@ export const fakturowniaLookup = async (nip: string): Promise<FakturowniaLookup>
   if (response.status === 404) throw new Error('Nie znaleziono klienta o tym NIP w Fakturowni');
   if (response.status === 503) throw new Error('Integracja z Fakturownią nie jest skonfigurowana');
   if (!response.ok) throw new Error('Błąd komunikacji z Fakturownią');
+  return response.json();
+};
+
+export interface FakturowniaSyncSummary {
+  invoicesFetched: number;
+  invoicesMatched: number;
+  invoicesWithoutNip: number;
+  updatedClients: number;
+  newInteractions: number;
+  noNip: string[];
+  noInvoices: string[];
+  unmatchedBuyers: { nip: string; name: string; count: number }[];
+}
+
+/** Hurtowo: wszystkie faktury z Fakturowni → Historia Kontaktów klientów (dopasowanie po NIP). */
+export const fakturowniaSyncAll = async (): Promise<FakturowniaSyncSummary> => {
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/api/fakturownia/sync-all`, { method: 'POST', headers });
+  if (response.status === 503) throw new Error('Integracja z Fakturownią nie jest skonfigurowana');
+  if (!response.ok) throw new Error('Błąd hurtowej aktualizacji z Fakturowni');
   return response.json();
 };
 

@@ -97,6 +97,55 @@ export const getInvoicesByClientId = async (clientId: number): Promise<Fakturown
   return all;
 };
 
+/** Faktura z danymi nabywcy — do hurtowego dopasowania po NIP. */
+export interface FakturowniaSalesInvoice extends FakturowniaInvoice {
+  buyerTaxNo: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerPerson: string;
+}
+
+/**
+ * Wszystkie faktury sprzedaży z konta (period=all), strona po stronie.
+ * Faktury kosztowe (income=0) pomijamy. Przy przekroczeniu bezpiecznika rzucamy błąd,
+ * żeby nie zapisać klientom niepełnej listy.
+ */
+export const getAllSalesInvoices = async (): Promise<FakturowniaSalesInvoice[]> => {
+  const byId = new Map<number, FakturowniaSalesInvoice>();
+  const MAX_PAGES = 200; // 20 000 faktur
+  for (let page = 1; ; page++) {
+    if (page > MAX_PAGES) throw new Error('Fakturownia: zbyt wiele faktur do pobrania naraz');
+    const url = `${baseUrl()}/invoices.json?period=all&page=${page}&per_page=100&api_token=${getToken()}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`Fakturownia invoices: ${res.status}`);
+    const arr = (await res.json()) as any[];
+    if (!Array.isArray(arr) || arr.length === 0) break;
+    for (const inv of arr) {
+      if (inv.income === false || String(inv.income) === '0') continue;
+      byId.set(inv.id, {
+        id: inv.id,
+        number: inv.number || '',
+        issueDate: inv.issue_date || '',
+        sellDate: inv.sell_date || '',
+        paymentTo: inv.payment_to || '',
+        priceNet: toNumber(inv.price_net),
+        priceGross: toNumber(inv.price_gross),
+        currency: inv.currency || 'PLN',
+        status: inv.status || '',
+        kind: inv.kind || '',
+        buyerTaxNo: inv.buyer_tax_no || '',
+        buyerName: inv.buyer_name || '',
+        buyerEmail: inv.buyer_email || '',
+        buyerPhone: inv.buyer_phone || '',
+        buyerPerson: inv.buyer_person || '',
+      });
+    }
+    if (arr.length < 100) break;
+  }
+  return Array.from(byId.values());
+};
+
 export interface FakturowniaCompanyStat {
   key: string;
   name: string;

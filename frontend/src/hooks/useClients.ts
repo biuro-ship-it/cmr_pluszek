@@ -6,8 +6,9 @@ export const useClients = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchClients = useCallback(async () => {
-    setLoading(true);
+  // silent: odświeżenie bez spinnera — lista zostaje zamontowana (np. po hurtowym pobraniu faktur).
+  const fetchClients = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const data = await getClients();

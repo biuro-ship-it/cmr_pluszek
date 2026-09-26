@@ -413,9 +413,9 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onClose, onDelete, onCl
     }
   };
 
-  // Faktury z Fakturowni (pobierane na żywo po NIP)
-  const [fkInvoices, setFkInvoices] = useState<FakturowniaInvoice[]>([]);
-  const [fkSyncedAt, setFkSyncedAt] = useState('');
+  // Faktury z Fakturowni: na start migawka z hurtowej aktualizacji, przycisk pobiera na żywo po NIP
+  const [fkInvoices, setFkInvoices] = useState<FakturowniaInvoice[]>(client.fakturowniaInvoices ?? []);
+  const [fkSyncedAt, setFkSyncedAt] = useState(client.fakturowniaSyncedAt ?? '');
   const [fkLoading, setFkLoading] = useState(false);
   const [fkError, setFkError] = useState('');
 

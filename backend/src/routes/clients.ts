@@ -124,8 +124,12 @@ router.put('/:id', async (req: AuthRequest, res) => {
       updatedBy: req.user?.email || 'Nieznany',
     };
 
-    await db.collection(COLLECTION).doc(id).update(updateData);
-    res.json({ id, ...updateData });
+    const ref = db.collection(COLLECTION).doc(id);
+    await ref.update(updateData);
+    // Pełny dokument, nie tylko pola formularza — inaczej front gubi lastContactAt,
+    // createdAt i migawkę faktur z Fakturowni po zapisie.
+    const saved = await ref.get();
+    res.json({ id, ...saved.data() });
   } catch (error) {
     res.status(500).json({ error: 'Nie udało się zaktualizować danych' });
   }

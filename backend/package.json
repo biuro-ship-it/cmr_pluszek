@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "node --require ts-node/register --test src/services/fakturowniaSync.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

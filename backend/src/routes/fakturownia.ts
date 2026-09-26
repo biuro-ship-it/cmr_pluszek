@@ -6,10 +6,73 @@ import {
   getInvoicesByClientId,
   getInvoicePdf,
   getInvoiceStats,
+  getAllSalesInvoices,
 } from '../services/fakturownia';
+import {
+  groupInvoicesByNip,
+  invoiceNumberFromNote,
+  normalizeVat,
+  planBulkSync,
+  SyncClient,
+} from '../services/fakturowniaSync';
+import { db } from '../services/firebase';
 
 const router = Router();
 router.use(verifyToken);
+
+// Hurtowa aktualizacja: wszystkie faktury sprzedaży → klienci CRM dopasowani po NIP.
+// Każda nowa faktura trafia do Historii Kontaktów (jak przycisk na karcie klienta).
+router.post('/sync-all', async (req: AuthRequest, res: Response) => {
+  if (!isFakturowniaConfigured()) {
+    res.status(503).json({ error: 'Integracja z Fakturownią nie jest skonfigurowana (brak FAKTUROWNIA_DOMAIN/TOKEN).' });
+    return;
+  }
+  try {
+    const invoices = await getAllSalesInvoices();
+    const snapshot = await db.collection('clients').get();
+    const clients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as SyncClient);
+
+    // Numery faktur już obecne w historii — czytamy tylko klientów, którzy mają faktury.
+    const { byNip } = groupInvoicesByNip(invoices);
+    const matched = clients.filter(c => byNip.has(normalizeVat(c.nip)));
+    const existingNumbers = new Map<string, Set<string>>();
+    await Promise.all(matched.map(async c => {
+      const hist = await db.collection('clients').doc(c.id).collection('interactions').get();
+      existingNumbers.set(c.id, new Set(
+        hist.docs.map(d => invoiceNumberFromNote(d.get('notes'))).filter(Boolean),
+      ));
+    }));
+
+    const now = new Date().toISOString();
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Warsaw' }).format(new Date());
+    const { updates, summary } = planBulkSync(clients, invoices, existingNumbers, now, today);
+
+    // Firestore: max 500 operacji w jednym batchu. Przerwany zapis można bezpiecznie
+    // powtórzyć — wpisy są deduplikowane po numerze faktury.
+    const createdBy = req.user?.email || 'Fakturownia';
+    const LIMIT = 400;
+    let batch = db.batch();
+    let ops = 0;
+    const count = async () => {
+      if (++ops >= LIMIT) { await batch.commit(); batch = db.batch(); ops = 0; }
+    };
+    for (const u of updates) {
+      const ref = db.collection('clients').doc(u.id);
+      for (const i of u.newInteractions) {
+        batch.set(ref.collection('interactions').doc(), { ...i, createdBy, createdAt: now });
+        await count();
+      }
+      batch.update(ref, u.data);
+      await count();
+    }
+    if (ops > 0) await batch.commit();
+
+    res.json(summary);
+  } catch (err) {
+    console.error('Fakturownia sync-all error:', err);
+    res.status(502).json({ error: 'Błąd hurtowej aktualizacji z Fakturowni.' });
+  }
+});
 
 // Analityka obrotu — agregacja faktur z całej Fakturowni po firmach.
 router.get('/stats', async (req: AuthRequest, res: Response) => {

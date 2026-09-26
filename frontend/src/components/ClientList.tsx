@@ -1,5 +1,5 @@
-import React from 'react';
-import { Client } from '../services/api';
+import React, { useState } from 'react';
+import { Client, fakturowniaSyncAll, FakturowniaSyncSummary } from '../services/api';
 import NipBadge from './NipBadge';
 
 type ExtendedClient = Client & { relationshipColor?: string };
@@ -30,6 +30,7 @@ interface ClientListProps {
   invoiceInfo?: InvoiceInfo;
   onRefreshInvoices?: () => void;
   invoiceLoading?: boolean;
+  onInvoicesSynced?: () => void;
   view: ClientListView;
   onViewChange: (next: ClientListView) => void;
 }
@@ -66,8 +67,26 @@ const getCardStyle = (colorId?: string) => {
   }
 };
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo, onRefreshInvoices, invoiceLoading, view, onViewChange }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo, onRefreshInvoices, invoiceLoading, onInvoicesSynced, view, onViewChange }) => {
   const { search, provinceFilter, sortBy, currentPage } = view;
+
+  // Hurtowe pobranie faktur z Fakturowni do Historii Kontaktów wszystkich klientów.
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
+  const [syncSummary, setSyncSummary] = useState<FakturowniaSyncSummary | null>(null);
+
+  const handleSyncAll = async () => {
+    if (!window.confirm('Pobrać faktury z Fakturowni dla wszystkich klientów?\n\nNowe faktury zostaną dopisane do Historii Kontaktów (klienci dopasowani po NIP). Faktury już odnotowane są pomijane.')) return;
+    setSyncing(true); setSyncError(''); setSyncSummary(null);
+    try {
+      setSyncSummary(await fakturowniaSyncAll());
+      onInvoicesSynced?.();
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Błąd aktualizacji z Fakturowni');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Zmiana filtra/sortowania cofa na pierwszą stronę; samo przewijanie stron jej nie rusza.
   const setFilters = (patch: Partial<ClientListView>) =>
@@ -141,6 +160,56 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
           >
             {invoiceLoading ? '⏳ Odświeżam…' : '↻ Odśwież faktury'}
           </button>
+        )}
+      </div>
+
+      <div className="mb-6 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSyncAll}
+            disabled={syncing}
+            className="bg-slate-900 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
+          >
+            {syncing ? '⏳ Pobieram faktury z Fakturowni…' : '🔄 Pobierz faktury wszystkich klientów'}
+          </button>
+          {syncError && <span className="text-sm text-rose-700">⚠️ {syncError}</span>}
+        </div>
+        {syncSummary && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-sm text-slate-700 space-y-2">
+            <div className="flex justify-between items-start gap-3">
+              <p className="font-bold text-emerald-800">
+                ✓ Klienci z fakturami: {syncSummary.updatedClients} · nowe wpisy w historii: {syncSummary.newInteractions}
+              </p>
+              <button type="button" onClick={() => setSyncSummary(null)} className="text-slate-400 hover:text-slate-700 font-bold" aria-label="Zamknij podsumowanie">✕</button>
+            </div>
+            <p className="text-slate-500">
+              Pobrano z Fakturowni {syncSummary.invoicesFetched} faktur sprzedaży, dopasowano {syncSummary.invoicesMatched}
+              {syncSummary.invoicesWithoutNip > 0 && ` (${syncSummary.invoicesWithoutNip} bez NIP nabywcy)`}.
+            </p>
+            {syncSummary.noNip.length > 0 && (
+              <details>
+                <summary className="cursor-pointer">Klienci bez NIP w CRM: <strong>{syncSummary.noNip.length}</strong></summary>
+                <p className="mt-1 text-slate-500">{syncSummary.noNip.join(', ')}</p>
+              </details>
+            )}
+            {syncSummary.noInvoices.length > 0 && (
+              <details>
+                <summary className="cursor-pointer">Klienci z NIP, bez faktur w Fakturowni: <strong>{syncSummary.noInvoices.length}</strong></summary>
+                <p className="mt-1 text-slate-500">{syncSummary.noInvoices.join(', ')}</p>
+              </details>
+            )}
+            {syncSummary.unmatchedBuyers.length > 0 && (
+              <details>
+                <summary className="cursor-pointer">Nabywcy z faktur, których nie ma w CRM: <strong>{syncSummary.unmatchedBuyers.length}</strong></summary>
+                <ul className="mt-1 text-slate-500">
+                  {syncSummary.unmatchedBuyers.map(b => (
+                    <li key={b.nip}>{b.name || '(brak nazwy)'} · NIP {b.nip} · faktur: {b.count}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
         )}
       </div>
       
