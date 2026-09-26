@@ -79,7 +79,7 @@ export const getInvoicesByClientId = async (clientId: number): Promise<Fakturown
     const arr = (await res.json()) as any[];
     if (!Array.isArray(arr) || arr.length === 0) break;
     for (const inv of arr) {
-      if (!isPluszekInvoice(inv.positions)) continue;
+      if (!isPluszekInvoice(inv)) continue;
       all.push({
         id: inv.id,
         number: inv.number || '',
@@ -126,7 +126,7 @@ export const getAllSalesInvoices = async (period = 'all'): Promise<FakturowniaSa
     if (!Array.isArray(arr) || arr.length === 0) break;
     for (const inv of arr) {
       if (inv.income === false || String(inv.income) === '0') continue;
-      if (!isPluszekInvoice(inv.positions)) continue;
+      if (!isPluszekInvoice(inv)) continue;
       byId.set(inv.id, {
         id: inv.id,
         number: inv.number || '',

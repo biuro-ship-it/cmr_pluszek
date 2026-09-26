@@ -56,12 +56,21 @@ export const normalizeVat = (v: string | undefined): string => {
 };
 
 // Konto Fakturowni jest wspólne z ramami/antyramami — CRM Pluszek dotyczy tylko materacy
-// do kąpieli (MAXI/MIDI). „Usługa pośrednictwa sprzedaż" też jest sprzedażą materacy.
-const PLUSZEK_POSITION = /materac|pośrednictw/i;
+// do kąpieli (MAXI/MIDI).
+const MATTRESS_POSITION = /materac/i;
 
-/** Czy faktura dotyczy Pluszka — ma choć jedną pozycję z materacem lub pośrednictwem. */
-export const isPluszekInvoice = (positions: { name?: string }[] | undefined): boolean =>
-  (positions ?? []).some(p => PLUSZEK_POSITION.test(p.name || ''));
+// „Usługa pośrednictwa sprzedaż" bez materaca na fakturze: tylko te dwie faktury są sprzedażą
+// Pluszka. Pozostałe (Pakersi, Foto Kulma, „Centrum" Ciołkosz) to klienci CRM Antyramy.
+// Nowych faktur z pośrednictwem nie będzie (Krzysiek, 2026-09-26) — lista jest zamknięta.
+const PLUSZEK_BROKERAGE_INVOICE_IDS = new Set<number>([
+  437699586, // 3/10/2025 Carero
+  437700106, // 5/09/2025 BOBAS
+]);
+
+/** Czy faktura dotyczy Pluszka — ma pozycję z materacem albo jest jedną z dawnych faktur za pośrednictwo. */
+export const isPluszekInvoice = (inv: { id?: number; positions?: { name?: string }[] }): boolean =>
+  (inv.positions ?? []).some(p => MATTRESS_POSITION.test(p.name || '')) ||
+  PLUSZEK_BROKERAGE_INVOICE_IDS.has(Number(inv.id));
 
 /** Numer faktury z wpisu w historii (ten sam wzorzec co w ClientCard). */
 export const invoiceNumberFromNote = (notes: string | undefined): string =>

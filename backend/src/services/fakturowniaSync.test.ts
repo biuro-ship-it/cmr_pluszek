@@ -30,15 +30,21 @@ describe('normalizeVat', () => {
 });
 
 describe('isPluszekInvoice', () => {
-  it('liczy faktury z materacem lub pośrednictwem', () => {
-    assert.equal(isPluszekInvoice([{ name: 'Materac pluszek MAXI mix' }, { name: 'usługa spedycji obca' }]), true);
-    assert.equal(isPluszekInvoice([{ name: 'BABYMAM MATERACYK DO KĄPIELI MIDI NIEBIESKI' }]), true);
-    assert.equal(isPluszekInvoice([{ name: 'usługa pośrednictwa sprzedaż' }]), true);
+  const brokerage = [{ name: 'usługa pośrednictwa sprzedaż' }];
+  it('liczy faktury z materacem', () => {
+    assert.equal(isPluszekInvoice({ id: 1, positions: [{ name: 'Materac pluszek MAXI mix' }, { name: 'usługa spedycji obca' }] }), true);
+    assert.equal(isPluszekInvoice({ id: 2, positions: [{ name: 'BABYMAM MATERACYK DO KĄPIELI MIDI NIEBIESKI' }] }), true);
+  });
+  it('pośrednictwo tylko na dawnych fakturach Carero i BOBAS', () => {
+    assert.equal(isPluszekInvoice({ id: 437699586, positions: brokerage }), true);  // Carero 3/10/2025
+    assert.equal(isPluszekInvoice({ id: 437700106, positions: brokerage }), true);  // BOBAS 5/09/2025
+    assert.equal(isPluszekInvoice({ id: 437699153, positions: brokerage }), false); // Foto Kulma — Antyramy
+    assert.equal(isPluszekInvoice({ id: 999, positions: brokerage }), false);       // nowe pośrednictwo
   });
   it('pomija ramy, antyramy i fakturę bez pozycji', () => {
-    assert.equal(isPluszekInvoice([{ name: 'Listwa Duo-Net 7214 czarna' }, { name: 'Forma dostawy: Kurier' }]), false);
-    assert.equal(isPluszekInvoice([]), false);
-    assert.equal(isPluszekInvoice(undefined), false);
+    assert.equal(isPluszekInvoice({ id: 3, positions: [{ name: 'Listwa Duo-Net 7214 czarna' }, { name: 'Forma dostawy: Kurier' }] }), false);
+    assert.equal(isPluszekInvoice({ id: 4, positions: [] }), false);
+    assert.equal(isPluszekInvoice({ id: 5 }), false);
   });
 });
 
