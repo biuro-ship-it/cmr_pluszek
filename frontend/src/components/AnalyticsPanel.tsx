@@ -112,7 +112,7 @@ export default function AnalyticsPanel() {
           <h2 className="text-2xl font-black text-slate-800">Analizy</h2>
           <p className="text-sm text-slate-500 mt-1">
             Obrót firm na podstawie faktur z Fakturowni (netto)
-            {stats?.category && <span className="ml-1">· kategoria <span className="font-bold text-slate-700">{stats.category}</span></span>}
+            {stats?.category && <span className="ml-1">· tylko <span className="font-bold text-slate-700">{stats.category}</span></span>}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -177,8 +177,7 @@ export default function AnalyticsPanel() {
             </div>
             {companies.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-10">
-                Brak faktur w kategorii <span className="font-semibold">{stats.category}</span> w wybranym okresie.
-                <br />Przypisz odpowiednie faktury do tej kategorii w Fakturowni, aby pojawiły się w analizie.
+                Brak faktur na <span className="font-semibold">{stats.category}</span> w wybranym okresie.
               </p>
             ) : (
               <div className="overflow-x-auto">

@@ -62,3 +62,9 @@ export const lookupNip = async (nipRaw: string): Promise<NipResult> => {
     raw,
   };
 };
+
+/** Klucz porównania NIP/VAT — jak na backendzie: bez znaków specjalnych i bez prefiksu kraju („CZ…", „PL…"). */
+export const vatKey = (v: string | undefined): string => {
+  const key = (v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^[A-Z]{2}(?=\d)/, '');
+  return key.length >= 5 ? key : '';
+};

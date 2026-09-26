@@ -54,14 +54,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSignOut }) => {
   // wejście w kartę klienta / formularz edycji i powrót na listę.
   const [clientListView, setClientListView] = useState<ClientListView>(emptyClientListView);
 
-  // Pobiera obraz faktur firm z Fakturowni (kategoria CRM-Pluszek) i buduje mapę po NIP.
+  // Pobiera obrót z materacy (Fakturownia) i buduje mapę po NIP (klucz jak vatKey — bez prefiksu kraju).
   const loadInvoiceInfo = useCallback(async () => {
     setInvoiceLoading(true);
     try {
       const s = await getFakturowniaStats('all');
       const map: InvoiceInfo = {};
       for (const c of s.companies) {
-        if (c.nip) map[c.nip.toUpperCase()] = { count: c.count, lastIssueDate: c.lastIssueDate, net: c.net };
+        if (c.nip) map[c.nip] = { count: c.count, lastIssueDate: c.lastIssueDate, net: c.net };
       }
       setInvoiceInfo(map);
     } catch {

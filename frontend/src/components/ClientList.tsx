@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Client, fakturowniaSyncAll, FakturowniaSyncSummary } from '../services/api';
 import NipBadge from './NipBadge';
+import { vatKey } from '../utils/nip';
 
 type ExtendedClient = Client & { relationshipColor?: string };
 
@@ -37,7 +38,7 @@ interface ClientListProps {
 
 // Sygnał „wymaga uwagi": w Fakturowni jest faktura nowsza niż ostatni kontakt w CRM.
 const needsAttention = (client: Client, info?: InvoiceInfo): string => {
-  const nip = (client.nip || '').replace(/[-\s]/g, '').toUpperCase();
+  const nip = vatKey(client.nip);
   const fk = nip && info ? info[nip] : undefined;
   if (!fk || fk.count === 0 || !fk.lastIssueDate) return '';
   const lastContact = (client.lastContactAt || '').slice(0, 10);
