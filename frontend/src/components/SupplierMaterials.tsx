@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   Supplier, SupplierMaterial, Interaction, InteractionFormData,
   updateSupplier, createSupplierInteraction,
@@ -22,6 +22,43 @@ const parsePrice = (v: string): number => {
 const zl = (n: number) =>
   new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
+const qtyFmt = (n: number) =>
+  new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 0 }).format(n);
+
+// Sumy ilości per jednostka — sztuki pierwsze, reszta w kolejności UNITS; różnych jednostek nie sumujemy.
+// Jednostki spoza UNITS (stare dane w Firestore) trafiają na koniec, żeby nie zniknęły z sumy.
+const sumByUnit = (items: SupplierMaterial[], qty: Record<string, number>): Record<string, number> => {
+  const totals: Record<string, number> = {};
+  const order = new Set<string>(['szt', ...UNITS, ...items.map(m => m.unit)]);
+  for (const u of order) {
+    const sum = items.filter(m => m.unit === u).reduce((s, m) => s + (qty[m.id] ?? 0), 0);
+    if (sum > 0) totals[u] = sum;
+  }
+  return totals;
+};
+
+// „120 szt · 15 kg”; pusty wybór = „0 szt”.
+const totalsText = (totals: Record<string, number>, sep = ' · ') => {
+  const parts = Object.entries(totals).map(([u, n]) => `${qtyFmt(n)} ${u}`);
+  return parts.length ? parts.join(sep) : '0 szt';
+};
+
+// Te same sumy w widoku: linia łamie się tylko między jednostkami, nigdy wewnątrz „120 szt”.
+function QtyTotals({ totals, valueCls = '' }: { totals: Record<string, number>; valueCls?: string }) {
+  const entries = Object.entries(totals);
+  if (entries.length === 0) return <span className={`whitespace-nowrap ${valueCls}`}>0 szt</span>;
+  return (
+    <>
+      {entries.map(([u, n], i) => (
+        <Fragment key={u}>
+          {i > 0 && <span className="text-slate-400"> · </span>}
+          <span className={`whitespace-nowrap ${valueCls}`}>{qtyFmt(n)} {u}</span>
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
 const todayPl = () => {
   const d = new Date();
   const p = (x: number) => String(x).padStart(2, '0');
@@ -34,7 +71,7 @@ type Draft = { name: string; unit: SupplierMaterial['unit']; price: string };
 const emptyDraft: Draft = { name: '', unit: 'szt', price: '' };
 
 // Podgląd zamówienia przed wysyłką — treść maila można jeszcze poprawić.
-type OrderPreview = { subject: string; body: string; lines: string[]; total: number };
+type OrderPreview = { subject: string; body: string; lines: string[]; total: number; totals: Record<string, number> };
 
 const inputCls = 'w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white text-sm';
 
@@ -118,6 +155,7 @@ export default function SupplierMaterials({ supplier, onSupplierUpdated, onOrder
 
   const selected = materials.filter(m => (quantities[m.id] ?? 0) > 0);
   const orderTotal = selected.reduce((sum, m) => sum + (quantities[m.id] ?? 0) * m.price, 0);
+  const qtyTotals = sumByUnit(selected, quantities);
 
   const handleClear = () => {
     setQuantities({});
@@ -139,7 +177,7 @@ export default function SupplierMaterials({ supplier, onSupplierUpdated, onOrder
       `${lines.join('\n')}` +
       `${notesPart}\n\n` +
       signature;
-    return { subject: `Zamówienie — Pluszek (${todayPl()})`, body, lines, total: orderTotal };
+    return { subject: `Zamówienie — Pluszek (${todayPl()})`, body, lines, total: orderTotal, totals: qtyTotals };
   };
 
   const handleOpenPreview = () => {
@@ -161,6 +199,7 @@ export default function SupplierMaterials({ supplier, onSupplierUpdated, onOrder
     `Do: ${supplier.email}\n` +
     `Temat: ${p.subject}\n\n` +
     `Pozycje:\n${p.lines.join('\n')}\n\n` +
+    `Razem zamówiono: ${totalsText(p.totals)}\n` +
     `Wartość wg cennika: ${zl(p.total)} zł netto (wyliczona w CRM — w mailu cen nie ma)\n\n` +
     `— treść wysłanej wiadomości —\n${p.body}`;
 
@@ -181,7 +220,7 @@ export default function SupplierMaterials({ supplier, onSupplierUpdated, onOrder
         contactDate: todayISO(),
         channel: 'mail',
         notes: buildHistoryNote(preview),
-        tradeNotes: `Zamówienie: ${preview.lines.length} poz., ${zl(preview.total)} zł netto`,
+        tradeNotes: `Zamówienie: ${preview.lines.length} poz., ${totalsText(preview.totals)}, ${zl(preview.total)} zł netto`,
         products: [],
       };
       const interaction = await createSupplierInteraction(supplier.id, data);
@@ -322,11 +361,17 @@ export default function SupplierMaterials({ supplier, onSupplierUpdated, onOrder
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-600">
-            Wartość wybranych pozycji:{' '}
-            <span className="font-black text-slate-800">{zl(orderTotal)} zł netto</span>
-            <span className="text-xs text-slate-400 ml-1">(podgląd — nie trafia do maila)</span>
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm text-slate-600">
+              Wartość wybranych pozycji:{' '}
+              <span className="font-black text-slate-800">{zl(orderTotal)} zł netto</span>
+              <span className="text-xs text-slate-400 ml-1">(podgląd — nie trafia do maila)</span>
+            </p>
+            <p className="text-sm text-slate-600">
+              Razem zamówiono:{' '}
+              <QtyTotals totals={qtyTotals} valueCls="font-black text-slate-800" />
+            </p>
+          </div>
           <div className="flex gap-2">
             <button type="button" onClick={handleClear} className="border border-slate-200 text-slate-600 font-semibold px-4 py-2 rounded-xl text-sm hover:bg-slate-100">Wyczyść</button>
             <button type="button" onClick={handleOpenPreview} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-xl text-sm transition-colors">✉️ Wyślij zamówienie mailem</button>
@@ -351,7 +396,7 @@ export default function SupplierMaterials({ supplier, onSupplierUpdated, onOrder
               <p className="text-xs font-bold text-slate-500 uppercase">Do: {supplier.email}</p>
               <p className="text-xs font-bold text-slate-500 uppercase mb-3">Temat: {preview.subject}</p>
               <p className="text-xs text-slate-500 mb-3">
-                Pozycji: {preview.lines.length} · wartość wg cennika {zl(preview.total)} zł netto
+                Pozycji: {preview.lines.length} · razem <QtyTotals totals={preview.totals} /> · wartość wg cennika {zl(preview.total)} zł netto
                 <span className="text-slate-400 ml-1">(ceny trafiają tylko do historii, nie do maila)</span>
               </p>
 
