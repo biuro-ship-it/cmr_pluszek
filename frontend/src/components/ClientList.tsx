@@ -13,6 +13,7 @@ export interface ClientListView {
   search: string;
   provinceFilter: string;
   sortBy: string;
+  noEmailOnly: boolean;
   currentPage: number;
 }
 
@@ -20,6 +21,7 @@ export const emptyClientListView = (): ClientListView => ({
   search: '',
   provinceFilter: '',
   sortBy: 'alpha',
+  noEmailOnly: false,
   currentPage: 1,
 });
 
@@ -48,6 +50,9 @@ const needsAttention = (client: Client, info?: InvoiceInfo): string => {
   return '';
 };
 
+// Jedno źródło prawdy dla kafelka, filtra i licznika „Bez e-maila" (same spacje = brak).
+const hasEmail = (c: Client): boolean => !!(c.email ?? '').trim();
+
 const PROVINCES = [
   'Dolnośląskie', 'Kujawsko-pomorskie', 'Lubelskie', 'Lubuskie',
   'Łódzkie', 'Małopolskie', 'Mazowieckie', 'Opolskie',
@@ -69,7 +74,9 @@ const getCardStyle = (colorId?: string) => {
 };
 
 const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoiceInfo, onRefreshInvoices, invoiceLoading, onInvoicesSynced, view, onViewChange }) => {
-  const { search, provinceFilter, sortBy, currentPage } = view;
+  const { search, provinceFilter, sortBy, noEmailOnly, currentPage } = view;
+  // Licznik z całej listy — niezależnie od wyszukiwania i województwa.
+  const noEmailCount = clients.filter((c) => !hasEmail(c)).length;
 
   // Hurtowe pobranie faktur z Fakturowni do Historii Kontaktów wszystkich klientów.
   const [syncing, setSyncing] = useState(false);
@@ -101,7 +108,8 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
                         (c.email ?? '').toLowerCase().includes(q) ||
                         (c.phone ?? '').toLowerCase().includes(q);
     const matchProvince = provinceFilter === '' ? true : c.address?.province === provinceFilter;
-    return matchSearch && matchProvince;
+    const matchEmail = noEmailOnly ? !hasEmail(c) : true;
+    return matchSearch && matchProvince && matchEmail;
   });
 
   processed.sort((a, b) => {
@@ -151,6 +159,22 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
             <option value="type">🏢 Według kategorii</option>
           </select>
         </div>
+        {/* Widoczny też przy N = 0, jeśli filtr jest włączony — inaczej nie dałoby się go wyłączyć. */}
+        {(noEmailCount > 0 || noEmailOnly) && (
+          <button
+            type="button"
+            onClick={() => setFilters({ noEmailOnly: !noEmailOnly })}
+            aria-pressed={noEmailOnly}
+            title="Pokaż tylko klientów bez adresu e-mail"
+            className={`p-3 rounded-xl border font-semibold whitespace-nowrap transition-colors ${
+              noEmailOnly
+                ? 'bg-amber-100 border-amber-400 text-amber-800 hover:bg-amber-200'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            ✉️ Bez e-maila ({noEmailCount})
+          </button>
+        )}
         {onRefreshInvoices && (
           <button
             type="button"
@@ -215,10 +239,12 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {paginated.map((client) => (
-          <div 
-            key={client.id} 
-            className={`p-5 rounded-2xl border shadow-sm hover:shadow-md transition-shadow group relative flex flex-col h-full ${getCardStyle(client.relationshipColor)}`}
+        {paginated.map((client) => {
+          const email = (client.email ?? '').trim();
+          return (
+          <div
+            key={client.id}
+            className={`p-5 rounded-2xl border shadow-sm hover:shadow-md transition-shadow group relative flex flex-col h-full ${getCardStyle(client.relationshipColor)} ${hasEmail(client) ? '' : 'ring-2 ring-amber-300'}`}
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-2">
@@ -249,13 +275,25 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onEdit, onView, invoic
             <div className="space-y-2 mb-6 flex-grow">
               <div className="flex items-center gap-2 text-xs text-slate-700"><span>📍</span><span>{client.address?.city || 'Brak miasta'}, {client.address?.province || 'Brak woj.'}</span></div>
               <div className="flex items-center gap-2 text-xs text-slate-700"><span>📞</span><span>{client.phone || 'Brak telefonu'}</span></div>
+              <div className="flex items-center gap-2 text-xs text-slate-700 min-w-0">
+                <span className="shrink-0">✉️</span>
+                {hasEmail(client) ? (
+                  <a href={`mailto:${email}`} title={email} className="truncate min-w-0 text-blue-700 hover:underline">{email}</a>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700">
+                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300">!</span>
+                    Brak e-maila
+                  </span>
+                )}
+              </div>
             </div>
 
             <button onClick={() => onView(client)} className="w-full mt-auto py-2 bg-white/60 hover:bg-white text-slate-800 text-sm font-semibold rounded-xl transition-colors border border-black/5">
               Otwórz kartę klienta
             </button>
           </div>
-        ))}
+          );
+        })}
         {paginated.length === 0 && <div className="col-span-full bg-white p-8 rounded-2xl text-center text-slate-500 border border-slate-200 border-dashed">Brak wyników wyszukiwania.</div>}
       </div>
 
